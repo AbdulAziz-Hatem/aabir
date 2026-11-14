@@ -6,6 +6,9 @@ on:
     tags: [ 'v*' ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build Signed Android APK
@@ -27,8 +30,9 @@ jobs:
           distribution: 'zulu'
           java-version: 21
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Android Licenses
+        run: |
+          yes | sdkmanager --licenses || true
 
       - name: Decode Release Keystore
         run: |
