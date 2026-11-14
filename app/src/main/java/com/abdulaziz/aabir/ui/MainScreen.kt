@@ -92,7 +92,13 @@ fun MainScreen(
 
     val executeLogin: (String) -> Unit = { pinToLogin ->
         val clean = pinToLogin.filter { it.isDigit() }
-        if (clean.length >= settings.minLen) {
+        if (clean.length < settings.minLen) {
+            val alertMsg = if (clean.isEmpty()) "يرجى كتابة أو مسح رمز الكرت أولاً" else "رمز الكرت غير مكتمل، مطلوب ${settings.minLen} أرقام على الأقل"
+            statusText = alertMsg
+            feedback.playErrorTone()
+            feedback.vibrateError()
+            feedback.speak(alertMsg, settings.voiceAnnounce, settings.selectedVoiceName)
+        } else {
             isLoggingIn = true
             statusText = "جارٍ تسجيل الدخول بالكود: $clean"
             feedback.speak("جارٍ تسجيل الدخول في الشبكة", settings.voiceAnnounce, settings.selectedVoiceName)

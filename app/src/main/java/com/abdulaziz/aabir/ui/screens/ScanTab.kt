@@ -8,6 +8,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ContentCopy
@@ -21,6 +23,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -120,6 +124,14 @@ fun ScanTab(
                             )
                         },
                         singleLine = true,
+                        // إجبار ظهور لوحة مفاتيح الأرقام الصافية فقط
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = { onExecuteLogin(pinText) }
+                        ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .semantics { stateDescription = "${pinText.length} أرقام مكتوبة" },
@@ -135,7 +147,7 @@ fun ScanTab(
 
                     Button(
                         onClick = { onExecuteLogin(pinText) },
-                        enabled = pinText.length >= settings.minLen && !isLoggingIn,
+                        enabled = !isLoggingIn,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(54.dp),
