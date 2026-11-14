@@ -1,4 +1,4 @@
-package com.raven.pinscan;
+package com.abdulaziz.kartyhotspot;
 
 import com.getcapacitor.BridgeActivity;
 
