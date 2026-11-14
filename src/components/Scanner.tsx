@@ -7,6 +7,12 @@ import { SpeechManager } from "@/lib/speech";
 
 type State = "starting" | "ready" | "scanning" | "found" | "error";
 
+interface NativeTorch {
+  setTorch: (enabled: boolean) => void;
+  toggleTorch: () => void;
+  isSupported: () => boolean;
+}
+
 export function Scanner({
   settings,
   onClose,
@@ -19,11 +25,41 @@ export function Scanner({
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
   const busy = useRef(false);
+  const lastRadarTime = useRef<number>(0);
   const [state, setState] = useState<State>("starting");
   const [ocrStatus, setOcrStatus] = useState<"loading" | "ready" | "error">("loading");
   const [msg, setMsg] = useState("جارٍ تشغيل الكاميرا...");
   const [torch, setTorch] = useState(false);
   const [torchOk, setTorchOk] = useState(false);
+
+  // استدعاء الجسر الأصلي للفلاش في أندرويد
+  const getNativeTorch = (): NativeTorch | undefined => {
+    return (window as unknown as { AndroidTorch?: NativeTorch }).AndroidTorch;
+  };
+
+  const setHardwareTorch = (on: boolean) => {
+    const native = getNativeTorch();
+    if (native) {
+      try {
+        native.setTorch(on);
+        setTorch(on);
+        return;
+      } catch {}
+    }
+
+    // الطريقة الاحتياطية عبر Web MediaTrack
+    const track = stream.current?.getVideoTracks()[0];
+    if (track) {
+      try {
+        void track.applyConstraints({ advanced: [{ torch: on } as MediaTrackConstraintSet] });
+        setTorch(on);
+      } catch {}
+    }
+  };
+
+  const toggleTorch = () => {
+    setHardwareTorch(!torch);
+  };
 
   const initOcr = useCallback(async () => {
     setOcrStatus("loading");
@@ -62,17 +98,19 @@ export function Scanner({
           video.current.srcObject = s;
           await video.current.play();
         }
+
+        const native = getNativeTorch();
+        const hasNative = !!(native && native.isSupported());
         const track = s.getVideoTracks()[0];
         const caps = (track?.getCapabilities?.() ?? {}) as { torch?: boolean };
-        const hasTorch = !!caps.torch;
-        setTorchOk(hasTorch);
+        const hasWebTorch = !!caps.torch;
 
-        // تشغيل الفلاش تلقائياً للمساعدة في إيضاح أرقام الخدش
-        if (hasTorch) {
-          try {
-            await track.applyConstraints({ advanced: [{ torch: true } as MediaTrackConstraintSet] });
-            setTorch(true);
-          } catch {}
+        const supported = hasNative || hasWebTorch;
+        setTorchOk(supported);
+
+        // تشغيل الفلاش بقوة الهاردوير تلقائياً لإضاءة سطح الخدش
+        if (supported) {
+          setTimeout(() => setHardwareTorch(true), 300);
         }
 
         setState("ready");
@@ -90,22 +128,13 @@ export function Scanner({
         }
       }
     })();
+
     return () => {
       alive = false;
+      setHardwareTorch(false); // إطفاء الفلاش عند الخروج
       stream.current?.getTracks().forEach((t) => t.stop());
     };
   }, [initOcr]);
-
-  const toggleTorch = async () => {
-    const t = stream.current?.getVideoTracks()[0];
-    if (!t) return;
-    try {
-      await t.applyConstraints({ advanced: [{ torch: !torch } as MediaTrackConstraintSet] });
-      setTorch(!torch);
-    } catch {
-      setTorchOk(false);
-    }
-  };
 
   const scan = useCallback(async () => {
     const v = video.current;
@@ -114,18 +143,21 @@ export function Scanner({
     setState("scanning");
     setMsg("جارٍ فحص الرمز...");
 
-    if (settings.radarSound) {
+    // إطلاق تكتكة الرادار كل 2.6 ثانية كنبضة هادئة ومتباعدة
+    const now = Date.now();
+    if (settings.radarSound && now - lastRadarTime.current >= 2600) {
       feedback.playRadarTick();
+      lastRadarTime.current = now;
     }
 
     try {
-      const cw = v.videoWidth * 0.88,
-        ch = v.videoHeight * 0.30;
+      const cw = v.videoWidth * 0.90,
+        ch = v.videoHeight * 0.35;
       const c = document.createElement("canvas");
       c.width = cw;
       c.height = ch;
       const ctx = c.getContext("2d")!;
-      ctx.filter = "grayscale(1) contrast(1.7)";
+      ctx.filter = "grayscale(1) contrast(1.75)";
       ctx.drawImage(v, (v.videoWidth - cw) / 2, (v.videoHeight - ch) / 2, cw, ch, 0, 0, cw, ch);
       const recognized = await recognizeImage(c);
       const pin = recognized.lines?.length
@@ -135,8 +167,9 @@ export function Scanner({
       if (pin) {
         setState("found");
         setMsg(`تم رصد الكود: ${pin}`);
+        setHardwareTorch(false); // إطفاء الفلاش فور العثور على الكود
         feedback.vibrateFound();
-        setTimeout(() => onPin(pin), 400);
+        setTimeout(() => onPin(pin), 350);
       } else {
         setState("ready");
         setMsg("لم يتم رصد رمز صالح - حافظ على ثبات الهاتف");
@@ -149,10 +182,10 @@ export function Scanner({
     busy.current = false;
   }, [settings, onPin, ocrStatus]);
 
-  // حلقة المسح التلقائي المستمر كل 1.3 ثانية
+  // حلقة المسح التلقائي المستمر كل 1.2 ثانية في الخلفية
   useEffect(() => {
     if (state !== "ready" || ocrStatus !== "ready") return;
-    const id = setTimeout(scan, 1300);
+    const id = setTimeout(scan, 1200);
     return () => clearTimeout(id);
   }, [state, ocrStatus, scan]);
 
@@ -174,7 +207,7 @@ export function Scanner({
       />
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
         <div
-          className={`relative aspect-[3.2/1] w-[88%] max-w-md rounded-2xl border-2 ${frameColor} shadow-[0_0_0_9999px_var(--scrim)] transition-colors`}
+          className={`relative aspect-[3.2/1] w-[90%] max-w-md rounded-2xl border-2 ${frameColor} shadow-[0_0_0_9999px_var(--scrim)] transition-colors`}
         >
           {(state === "ready" || state === "scanning") && (
             <div className="scanline absolute inset-x-2 h-0.5 rounded bg-primary" />
@@ -184,7 +217,14 @@ export function Scanner({
 
       {/* الشريط العلوي */}
       <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))]">
-        <button onClick={onClose} className="glass-btn h-12 w-12" aria-label="إغلاق الكاميرا والعودة للرئيسية">
+        <button
+          onClick={() => {
+            setHardwareTorch(false);
+            onClose();
+          }}
+          className="glass-btn h-12 w-12 flex items-center justify-center"
+          aria-label="إغلاق الكاميرا والعودة للرئيسية"
+        >
           <X size={22} />
         </button>
         <span className="glass-btn px-4 py-2 text-sm font-medium" role="status" aria-live="polite">
@@ -194,7 +234,7 @@ export function Scanner({
           onClick={toggleTorch}
           disabled={!torchOk}
           aria-label={torch ? "إطفاء فلاش الكاميرا" : "تشغيل فلاش الكاميرا"}
-          className={`glass-btn h-12 w-12 ${torch ? "!bg-primary !text-primary-foreground" : ""} disabled:opacity-40`}
+          className={`glass-btn h-12 w-12 flex items-center justify-center ${torch ? "!bg-primary !text-primary-foreground" : ""} disabled:opacity-40`}
         >
           {torch ? <Flashlight size={22} /> : <FlashlightOff size={22} />}
         </button>
@@ -210,7 +250,7 @@ export function Scanner({
             state === "found" ||
             ocrStatus === "loading"
           }
-          className="btn-primary flex items-center gap-2 px-8 py-4 text-base font-semibold disabled:opacity-60"
+          className="btn-primary flex items-center gap-2 px-8 py-4 text-base font-bold disabled:opacity-60"
           aria-label="التقاط فوري للكود الآن"
         >
           {state === "scanning" || state === "starting" || ocrStatus === "loading" ? (
@@ -230,7 +270,14 @@ export function Scanner({
                     ? "إعادة المحاولة"
                     : "التقاط فوري الآن"}
         </button>
-        <button onClick={onClose} className="text-sm font-medium text-overlay-foreground/80 underline p-2" aria-label="الرجوع وكتابة الكود يدوياً">
+        <button
+          onClick={() => {
+            setHardwareTorch(false);
+            onClose();
+          }}
+          className="text-sm font-medium text-overlay-foreground/80 underline p-2"
+          aria-label="الرجوع وكتابة الكود يدوياً"
+        >
           إدخال الكود يدوياً
         </button>
       </div>

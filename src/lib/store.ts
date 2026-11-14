@@ -23,8 +23,8 @@ export const DEFAULTS: Settings = {
   voiceAnnounce: true,
   selectedVoiceURI: "",
   radarSound: true,
-  minLen: 6,
-  maxLen: 12,
+  minLen: 4, // مرونة كاملة تبدأ من 4 خانات
+  maxLen: 16, // وتصل حتى 16 خانة
   groupBy: 4,
   theme: "dark",
   accent: "blue",
@@ -65,14 +65,24 @@ function pinCandidates(text: string, s: Settings) {
     .replace(/[Ss]/g, "5")
     .replace(/B/g, "8");
 
-  const runs = cleaned.match(/[\d][\d\s-]{4,}[\d]/g) ?? [];
+  // استخراج كافة المتواليات الرقمية
+  const runs = cleaned.match(/[\d][\d\s-]{2,}[\d]/g) ?? [];
+
   return runs
     .map((r) => r.replace(/\D/g, ""))
     .filter((digits) => {
-      // التحقق من الطول
+      // 1. التحقق من الحدود العامة (المرنة)
       if (digits.length < s.minLen || digits.length > s.maxLen) return false;
-      // استبعاد أرقام الهواتف اليمنية وخدمة العملاء الشائعة
-      if (/^(77|73|71|70|78|01)\d{6,8}$/.test(digits)) return false;
+
+      // 2. استبعاد أرقام الهواتف النقالة في اليمن (70, 71, 73, 77, 78) وأرقام الثابت (01 إلى 07)
+      if (/^(77|78|73|71|70|01|02|03|04|05|06|07)\d{6,8}$/.test(digits)) return false;
+
+      // 3. استبعاد أرقام خدمة العملاء وبوابات الاستعلام الشائعة
+      if (/^(101|102|107|501|601|701|800)\d*$/.test(digits)) return false;
+
+      // 4. استبعاد أرقام السيريال الطويلة جداً التي ترافق الباركود
+      if (digits.length > 15) return false;
+
       return true;
     });
 }
@@ -85,7 +95,8 @@ export function extractPinFromLines(lines: RecognizedLine[], s: Settings): strin
   const candidates = lines.flatMap((line) =>
     pinCandidates(line.text, s).map((digits) => ({ digits, height: line.height })),
   );
-  // إعطاء الأولوية للخط الأكبر حجماً، ثم للطول
+
+  // إعطاء الأولوية للخط الأكبر حجماً (خانة الخدش)، ثم للطول المناسب
   candidates.sort((a, b) => b.height - a.height || b.digits.length - a.digits.length);
   return candidates[0]?.digits ?? null;
 }
