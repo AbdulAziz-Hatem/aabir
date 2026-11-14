@@ -1,4 +1,4 @@
-name: Build & Sign Karty Hotspot APK
+name: Build & Sign Aabir APKs (Full & Lite)
 
 on:
   push:
@@ -11,18 +11,12 @@ permissions:
 
 jobs:
   build:
-    name: Build Signed Android APK
+    name: Build Signed Native Full & Lite APKs
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
-      - name: Setup Node.js 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
 
       - name: Setup Java 21
         uses: actions/setup-java@v4
@@ -36,53 +30,63 @@ jobs:
 
       - name: Decode Release Keystore
         run: |
-          echo "${{ secrets.KEYSTORE_FILE }}" | base64 --decode > android/app/release.jks
+          mkdir -p app
+          echo "${{ secrets.KEYSTORE_FILE }}" | base64 --decode > app/release.jks
 
-      - name: Install Dependencies
-        run: npm install
-
-      - name: Build Web Application
-        run: npm run build
-
-      - name: Sync Capacitor Android
-        run: npx cap sync android
-
-      - name: Build Signed Release APK
+      - name: Build Signed Full & Lite APKs via Gradle
         env:
-          KEYSTORE_PATH: ${{ github.workspace }}/android/app/release.jks
+          KEYSTORE_PATH: ${{ github.workspace }}/app/release.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
           KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
         run: |
-          cd android
           chmod +x gradlew
-          ./gradlew assembleRelease --stacktrace
+          ./gradlew assembleFullRelease assembleLiteRelease --stacktrace
 
-      - name: Upload Signed APK Artifact
+          mkdir -p dist-apks
+          cp app/build/outputs/apk/full/release/*-release.apk dist-apks/aabir-full-signed.apk
+          cp app/build/outputs/apk/lite/release/*-release.apk dist-apks/aabir-lite-signed.apk
+          ls -lh dist-apks/
+
+      - name: Upload Full APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Karty-Hotspot-Signed-APK
-          path: android/app/build/outputs/apk/release/*.apk
+          name: Aabir-Full-APK
+          path: dist-apks/aabir-full-signed.apk
+          retention-days: 30
+
+      - name: Upload Lite APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aabir-Lite-APK
+          path: dist-apks/aabir-lite-signed.apk
           retention-days: 30
 
       - name: Create GitHub Release on Tag
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: android/app/build/outputs/apk/release/*.apk
-          name: Karty Hotspot ${{ github.ref_name }}
+          files: dist-apks/*.apk
+          name: Aabir ${{ github.ref_name }}
           body: |
-            ## كروتي هوت سبوت — Karty Hotspot 📶
-            تطبيق أندرويد مفتوح المصدر لقراءة كروت شبكات الواي فاي (ميكروتك) ضوئياً وتسجيل الدخول التلقائي في بوابات الهوت سبوت (Captive Portals)، مصمم خصيصاً لدعم قارئات الشاشة (TalkBack / Jieshuo).
-            
-            ### الميزات الرئيسية:
-            - **تعرف ضوئي محلي بالكامل (Offline OCR):** يعمل بدون إنترنت مع فلترة ذكية لخطوط الخدش وتجاهل أرقام الهواتف والبيانات الجانبية.
-            - **تسجيل دخول تلقائي لميكروتك (Captive Portal Auto-Submit):** إرسال طلب الدخول للبوابة فور التقاط الكود دون الحاجة لفتح المتصفح.
-            - **إتاحة كاملة للمكفوفين (WCAG 2.1 AA):**
-              - نغمات ترددية حية عبر Web Audio API تميز بين النجاح والفشل وصوت تكتكة الرادار أثناء بحث الكاميرا.
-              - أنماط اهتزاز متباينة للأحداث المختلفة.
-              - إشعارات ناطقة مدمجة عبر محركات تحويل النص إلى كلام (TTS) مع إمكانية اختيار الصوت المفضل من الإعدادات أو إيقاف التنبيه الصوتي.
-              - رسائل Toast متوافقة مع قارئات الشاشة.
-            - **موقع وموثق رقمياً:** تم التوقيع الرقمي بواسطة مفتاح RSA-4096 المعتمد للمطور عبد العزيز حاتم.
+            ## تطبيق عَابِر — Aabir 📶 (${{ github.ref_name }})
+            تطبيق أندرويد أصيل 100% مبني بلغة **Kotlin** وبإطار **Jetpack Compose الحديث**، مخصص لمسح كروت شبكات الواي فاي (ميكروتك) ضوئياً وتسجيل الدخول التلقائي في بوابات الهوت سبوت (Captive Portals)، مصمم وفق أعلى معايير الإتاحة والوصول الشامل للمكفوفين ومستخدمي قارئات الشاشة (TalkBack / Jieshuo).
+
+            ### 📦 الحزم المتوفرة للتحميل:
+            1. **`aabir-full-signed.apk` (النسخة الكاملة - Standalone Offline):**
+               - مدمج بها محرك الذكاء الاصطناعي Google ML Kit أوفلاين بالكامل دون إنترنت.
+               - تعمل في أي مكان بدون اتصال وبدون الحاجة لخدمات غوغل بلاي.
+            2. **`aabir-lite-signed.apk` (النسخة الخفيفة - موفرة البيانات):**
+               - حجم ضئيل جداً (~3MB فقط!) لتوفير رصيد البيانات.
+               - تعتمد على تنزيل نموذج التعرف الضوئي ديناميكياً عبر خدمات غوغل بلاي.
+
+            ### 🛡️ أبرز ميزات وإصلاحات معمارية Kotlin & Compose:
+            - **معمارية أصيلة بالكامل:** تم الاستغناء نهائياً عن الـ WebView وحزم الويب، وتطوير التطبيق بـ Kotlin و CameraX المباشرة.
+            - **تحكم عتادي مباشر في الفلاش:** إضاءة فورية للكشاف عند فتح الكاميرا وإطفاؤه آلياً عند انتهاء المسح.
+            - **كشف دقيق لبوابة ميكروتك:** سحب عنوان الراوتر النشط من عتاد الواي فاي تلقائياً دون أي تخمين.
+            - **فحص محلي فوري لمنع التعليق:** فحص سريع عبر الـ IP الداخلي وصفحة الحالة دون انتظار DNS خارجي.
+            - **رادار صوتي هادئ:** تكتكة ترددية ناعمة تنبض كل 2.8 ثانية لطمأنة الكفيف بيقظة الكاميرا دون أي إزعاج.
+            - **جاهزية أندرويد 17:** دعم محاذاة 16KB Page Alignment والإيماءات التنبؤية والحواف الآمنة Edge-to-Edge.
+            - **توقيع رقمي موثق:** تم التوقيع بمفتاح RSA-4096 المعتمد للمطور عبد العزيز حاتم.
           draft: false
           prerelease: false
