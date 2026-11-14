@@ -41,7 +41,8 @@ jobs:
           KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleFullRelease assembleLiteRelease --stacktrace
+          ./gradlew assembleFullRelease --stacktrace
+          ./gradlew assembleLiteRelease --stacktrace
 
           mkdir -p dist-apks
           cp app/build/outputs/apk/full/release/*-release.apk dist-apks/aabir-full-signed.apk
