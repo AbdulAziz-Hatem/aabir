@@ -7,13 +7,7 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -31,20 +25,27 @@ fun CameraPreview(
     minLen: Int,
     maxLen: Int,
     onPinDetected: (String) -> Unit,
+    onGuidanceNeeded: (String) -> Unit,
     onRadarPulse: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var camera by remember { mutableStateOf<Camera?>(null) }
+    var cameraProviderInstance by remember { mutableStateOf<ProcessCameraProvider?>(null) }
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
+    val analyzer = remember(minLen, maxLen) {
+        VoucherAnalyzer(context, minLen, maxLen, onPinDetected, onGuidanceNeeded)
+    }
 
     // التحكم في فلاش الكاميرا عبر العتاد
     LaunchedEffect(torchEnabled, camera) {
-        camera?.cameraControl?.enableTorch(torchEnabled)
+        try {
+            camera?.cameraControl?.enableTorch(torchEnabled)
+        } catch (ignored: Exception) {}
     }
 
-    // إطلاق نبضة الرادار الصوتية كل 2.8 ثانية (نبضة متباعدة وهادئة)
+    // نبضة الرادار الصوتية كل 2.8 ثانية
     LaunchedEffect(radarEnabled) {
         if (!radarEnabled) return@LaunchedEffect
         while (isActive) {
@@ -55,6 +56,10 @@ fun CameraPreview(
 
     DisposableEffect(Unit) {
         onDispose {
+            analyzer.stop()
+            try {
+                cameraProviderInstance?.unbindAll()
+            } catch (ignored: Exception) {}
             cameraExecutor.shutdown()
         }
     }
@@ -65,23 +70,23 @@ fun CameraPreview(
             val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
 
             cameraProviderFuture.addListener({
-                val cameraProvider = cameraProviderFuture.get()
+                try {
+                    val cameraProvider = cameraProviderFuture.get()
+                    cameraProviderInstance = cameraProvider
 
-                val preview = Preview.Builder().build().also {
-                    it.surfaceProvider = previewView.surfaceProvider
-                }
-
-                val analyzer = VoucherAnalyzer(minLen, maxLen, onPinDetected)
-                val imageAnalysis = ImageAnalysis.Builder()
-                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .build()
-                    .also {
-                        it.setAnalyzer(cameraExecutor, analyzer)
+                    val preview = Preview.Builder().build().also {
+                        it.surfaceProvider = previewView.surfaceProvider
                     }
 
-                val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+                    val imageAnalysis = ImageAnalysis.Builder()
+                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                        .build()
+                        .also {
+                            it.setAnalyzer(cameraExecutor, analyzer)
+                        }
 
-                try {
+                    val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+
                     cameraProvider.unbindAll()
                     camera = cameraProvider.bindToLifecycle(
                         lifecycleOwner,
@@ -96,8 +101,6 @@ fun CameraPreview(
         },
         modifier = modifier
             .fillMaxSize()
-            .clearAndSetSemantics {
-                // مسح شجرة الإتاحة عن الكاميرا بالكامل حتى لا يقرأ TalkBack أي تفاصيل بصرية مشوشة
-            }
+            .clearAndSetSemantics {}
     )
 }

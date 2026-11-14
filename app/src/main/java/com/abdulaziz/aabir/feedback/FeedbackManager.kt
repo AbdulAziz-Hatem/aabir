@@ -10,14 +10,15 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.speech.tts.TextToSpeech
 import android.speech.tts.Voice
+import kotlinx.coroutines.*
 import java.util.Locale
-import kotlin.concurrent.thread
 import kotlin.math.sin
 
 class FeedbackManager(private val context: Context) : TextToSpeech.OnInitListener {
 
     private var tts: TextToSpeech? = null
     private var isTtsReady = false
+    private val audioScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     private val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
@@ -26,6 +27,12 @@ class FeedbackManager(private val context: Context) : TextToSpeech.OnInitListene
         @Suppress("DEPRECATION")
         context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
     }
+
+    // عينات PCM المحسوبة مسبقاً في الذاكرة لتوفير المعالج والبطارية
+    private val sampleRate = 44100
+    private val radarBuffer: ShortArray by lazy { generateSineBuffer(880.0, 25, 0.25f) }
+    private val errorBuffer: ShortArray by lazy { generateErrorBuffer() }
+    private val successBuffer: ShortArray by lazy { generateSuccessChordBuffer() }
 
     init {
         tts = TextToSpeech(context, this)
@@ -38,7 +45,6 @@ class FeedbackManager(private val context: Context) : TextToSpeech.OnInitListene
         }
     }
 
-    // نطق التنبيهات الصوتية
     fun speak(text: String, enabled: Boolean, voiceName: String = "") {
         if (!enabled || !isTtsReady) return
         tts?.let { engine ->
@@ -50,33 +56,70 @@ class FeedbackManager(private val context: Context) : TextToSpeech.OnInitListene
         }
     }
 
-    // جلب قائمة الأصوات المثبتة
     fun getAvailableVoices(): List<Voice> {
         return tts?.voices?.filter { it.locale.language.startsWith("ar") || it.locale.language.startsWith("en") }
             ?.toList() ?: emptyList()
     }
 
-    // توليد نغمة نقية بالتردد المحدد (PCM Sine Wave Synthesis)
-    private fun playTone(freqHz: Double, durationMs: Int, volume: Float = 0.8f) {
-        thread {
+    // توليد مسبق لموجة جيبية نقية مع تطبيق Envelope
+    private fun generateSineBuffer(freqHz: Double, durationMs: Int, volume: Float): ShortArray {
+        val numSamples = (sampleRate * (durationMs / 1000.0)).toInt()
+        val buffer = ShortArray(numSamples)
+        for (i in 0 until numSamples) {
+            val angle = 2.0 * Math.PI * i / (sampleRate / freqHz)
+            val fadeFactor = when {
+                i < 150 -> i / 150.0
+                i > numSamples - 300 -> (numSamples - i) / 300.0
+                else -> 1.0
+            }
+            buffer[i] = (sin(angle) * 32767 * volume * fadeFactor).toInt().toShort()
+        }
+        return buffer
+    }
+
+    // توليد كورد النجاح الثلاثي المتصاعد (C5 -> E5 -> G5)
+    private fun generateSuccessChordBuffer(): ShortArray {
+        val c5 = generateSineBuffer(523.25, 90, 0.6f)
+        val e5 = generateSineBuffer(659.25, 90, 0.65f)
+        val g5 = generateSineBuffer(783.99, 180, 0.7f)
+        val gap = ShortArray((sampleRate * 0.05).toInt())
+
+        val total = c5.size + gap.size + e5.size + gap.size + g5.size
+        val result = ShortArray(total)
+        var offset = 0
+
+        System.arraycopy(c5, 0, result, offset, c5.size); offset += c5.size
+        System.arraycopy(gap, 0, result, offset, gap.size); offset += gap.size
+        System.arraycopy(e5, 0, result, offset, e5.size); offset += e5.size
+        System.arraycopy(gap, 0, result, offset, gap.size); offset += gap.size
+        System.arraycopy(g5, 0, result, offset, g5.size)
+
+        return result
+    }
+
+    // توليد نغمة الخطأ الحاسمة الهابطة (280Hz -> 130Hz)
+    private fun generateErrorBuffer(): ShortArray {
+        val high = generateSineBuffer(280.0, 110, 0.75f)
+        val gap = ShortArray((sampleRate * 0.04).toInt())
+        val low = generateSineBuffer(130.0, 190, 0.8f)
+
+        val total = high.size + gap.size + low.size
+        val result = ShortArray(total)
+        var offset = 0
+
+        System.arraycopy(high, 0, result, offset, high.size); offset += high.size
+        System.arraycopy(gap, 0, result, offset, gap.size); offset += gap.size
+        System.arraycopy(low, 0, result, offset, low.size)
+
+        return result
+    }
+
+    // تشغيل العازل في مسار صوتي آمن
+    private fun playBufferAsync(buffer: ShortArray) {
+        audioScope.launch {
+            var track: AudioTrack? = null
             try {
-                val sampleRate = 44100
-                val numSamples = (sampleRate * (durationMs / 1000.0)).toInt()
-                val generatedSnd = ShortArray(numSamples)
-
-                for (i in 0 until numSamples) {
-                    val angle = 2.0 * Math.PI * i / (sampleRate / freqHz)
-                    // تطبيق Envelope خفيف لمنع طقطقة الصوت (Anti-click Fade In/Out)
-                    val fadeFactor = when {
-                        i < 200 -> i / 200.0
-                        i > numSamples - 400 -> (numSamples - i) / 400.0
-                        else -> 1.0
-                    }
-                    val sample = (sin(angle) * 32767 * volume * fadeFactor).toInt()
-                    generatedSnd[i] = sample.toShort()
-                }
-
-                val track = AudioTrack.Builder()
+                track = AudioTrack.Builder()
                     .setAudioAttributes(
                         AudioAttributes.Builder()
                             .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -90,44 +133,36 @@ class FeedbackManager(private val context: Context) : TextToSpeech.OnInitListene
                             .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                             .build()
                     )
-                    .setBufferSizeInBytes(numSamples * 2)
+                    .setBufferSizeInBytes(buffer.size * 2)
                     .setTransferMode(AudioTrack.MODE_STATIC)
                     .build()
 
-                track.write(generatedSnd, 0, numSamples)
+                track.write(buffer, 0, buffer.size)
                 track.play()
-                Thread.sleep(durationMs.toLong() + 30)
-                track.release()
-            } catch (ignored: Exception) {}
+                val durationMs = (buffer.size * 1000L / sampleRate) + 20
+                delay(durationMs)
+            } catch (ignored: Exception) {
+            } finally {
+                try {
+                    track?.stop()
+                    track?.release()
+                } catch (ignored: Exception) {}
+            }
         }
     }
 
-    // كورد النجاح الثلاثي المتصاعد (C5 -> E5 -> G5)
     fun playSuccessChord() {
-        thread {
-            playTone(523.25, 90, 0.7f) // C5
-            Thread.sleep(70)
-            playTone(659.25, 90, 0.7f) // E5
-            Thread.sleep(70)
-            playTone(783.99, 180, 0.8f) // G5
-        }
+        playBufferAsync(successBuffer)
     }
 
-    // نغمة الخطأ الحاسمة الهابطة (280Hz -> 110Hz)
     fun playErrorTone() {
-        thread {
-            playTone(280.0, 120, 0.8f)
-            Thread.sleep(60)
-            playTone(130.0, 200, 0.85f)
-        }
+        playBufferAsync(errorBuffer)
     }
 
-    // تكتكة الرادار الناعمة والهادئة (880Hz لمدة 25ms فقط)
     fun playRadarTick() {
-        playTone(880.0, 25, 0.25f)
+        playBufferAsync(radarBuffer)
     }
 
-    // اهتزاز النجاح: نبضتان ناعمتان متتاليتان
     fun vibrateSuccess() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 90, 60, 160), -1))
@@ -137,7 +172,6 @@ class FeedbackManager(private val context: Context) : TextToSpeech.OnInitListene
         }
     }
 
-    // اهتزاز الفشل: ثلاث نبضات قوية متقطعة
     fun vibrateError() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 220, 80, 220, 80, 220), -1))
@@ -147,7 +181,6 @@ class FeedbackManager(private val context: Context) : TextToSpeech.OnInitListene
         }
     }
 
-    // اهتزاز التقاط الرمز: نبضة خفيفة واحدة
     fun vibrateFound() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             vibrator?.vibrate(VibrationEffect.createOneShot(70, VibrationEffect.DEFAULT_AMPLITUDE))
@@ -158,6 +191,7 @@ class FeedbackManager(private val context: Context) : TextToSpeech.OnInitListene
     }
 
     fun release() {
+        audioScope.cancel()
         tts?.stop()
         tts?.shutdown()
     }
