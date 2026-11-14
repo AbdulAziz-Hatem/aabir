@@ -16,8 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.invisibleToUser
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -97,9 +96,8 @@ fun CameraPreview(
         },
         modifier = modifier
             .fillMaxSize()
-            .semantics {
-                // إخفاء سطح الفيديو المباشر عن TalkBack لمنع التشويش على الصوت
-                invisibleToUser()
+            .clearAndSetSemantics {
+                // مسح شجرة الإتاحة عن الكاميرا بالكامل حتى لا يقرأ TalkBack أي تفاصيل بصرية مشوشة
             }
     )
 }
