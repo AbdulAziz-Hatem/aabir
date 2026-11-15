@@ -12,14 +12,14 @@ def hasReleaseSigning = [releaseKeystorePath, releaseStorePassword, releaseKeyAl
 
 android {
     namespace 'com.abdulaziz.netpass'
-    compileSdk 35
+    compileSdk 37
 
     defaultConfig {
         applicationId 'com.abdulaziz.netpass'
         minSdk 24
         targetSdk 35
-        versionCode 17
-        versionName "1.1.0-alpha06"
+        versionCode 18
+        versionName "1.1.0-alpha07"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary true
@@ -100,8 +100,8 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.7'
     implementation 'androidx.activity:activity-compose:1.10.1'
 
-    // Compose BOM & UI (Material You v3)
-    implementation platform('androidx.compose:compose-bom:2024.12.01')
+    // Compose BOM & UI (Material You v3 - Compose 1.12.1 & Material3 1.4.0)
+    implementation platform('androidx.compose:compose-bom:2026.09.00')
     implementation 'androidx.compose.ui:ui'
     implementation 'androidx.compose.ui:ui-graphics'
     implementation 'androidx.compose.ui:ui-tooling-preview'
