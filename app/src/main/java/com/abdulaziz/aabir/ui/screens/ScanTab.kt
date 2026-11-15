@@ -51,13 +51,17 @@ fun ScanTab(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // بطاقة فتح الكاميرا
+        // بطاقة فتح الكاميرا (مجموعة تنقل متماسكة)
         item {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(24.dp))
-                    .clickable { onStartScan() },
+                    .clickable { onStartScan() }
+                    .semantics(mergeDescendants = true) {
+                        role = Role.Button
+                        contentDescription = "امسح كرت الواي فاي، انقر لفتح الكاميرا والمسح مع التوجيه الصوتي"
+                    },
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
                 )
@@ -99,7 +103,9 @@ fun ScanTab(
         // بطاقة إدخال الرمز والإجراءات
         item {
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics { isTraversalGroup = true },
                 shape = RoundedCornerShape(20.dp)
             ) {
                 Column(
@@ -124,7 +130,6 @@ fun ScanTab(
                             )
                         },
                         singleLine = true,
-                        // إجبار ظهور لوحة مفاتيح الأرقام الصافية فقط
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Number,
                             imeAction = ImeAction.Done
@@ -134,7 +139,9 @@ fun ScanTab(
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .semantics { stateDescription = "${pinText.length} أرقام مكتوبة" },
+                            .semantics {
+                                stateDescription = if (pinText.isEmpty()) "الحقل فارغ" else "${pinText.length} أرقام مكتوبة"
+                            },
                         shape = RoundedCornerShape(16.dp),
                         textStyle = LocalTextStyle.current.copy(
                             textAlign = TextAlign.Center,
@@ -150,7 +157,12 @@ fun ScanTab(
                         enabled = !isLoggingIn,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(54.dp),
+                            .height(54.dp)
+                            .minimumInteractiveComponentSize()
+                            .semantics {
+                                role = Role.Button
+                                contentDescription = if (isLoggingIn) "جارٍ تسجيل الدخول في الشبكة" else "تسجيل الدخول في الشبكة"
+                            },
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         if (isLoggingIn) {
@@ -181,7 +193,8 @@ fun ScanTab(
                         enabled = pinText.isNotEmpty(),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp),
+                            .height(48.dp)
+                            .minimumInteractiveComponentSize(),
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))

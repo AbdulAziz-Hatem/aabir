@@ -14,19 +14,19 @@ import java.util.concurrent.TimeUnit
 object MikrotikClient {
 
     private val client = OkHttpClient.Builder()
-        .connectTimeout(2000, TimeUnit.MILLISECONDS)
-        .readTimeout(2000, TimeUnit.MILLISECONDS)
+        .connectTimeout(3000, TimeUnit.MILLISECONDS)
+        .readTimeout(3000, TimeUnit.MILLISECONDS)
         .followRedirects(true)
         .build()
 
     private val strictNoRedirectClient = OkHttpClient.Builder()
-        .connectTimeout(1500, TimeUnit.MILLISECONDS)
-        .readTimeout(1500, TimeUnit.MILLISECONDS)
+        .connectTimeout(2000, TimeUnit.MILLISECONDS)
+        .readTimeout(2000, TimeUnit.MILLISECONDS)
         .followRedirects(false)
         .followSslRedirects(false)
         .build()
 
-    // محول الأرقام الكوني: تحويل الأرقام العربية المشرقية (١٢٣) إلى أرقام ASCII (123)
+    // تحويل الأرقام العربية المشرقية (١٢٣) إلى أرقام ASCII (123)
     fun normalizeToAsciiDigits(input: String): String {
         val sb = StringBuilder()
         for (ch in input) {
@@ -45,7 +45,6 @@ object MikrotikClient {
         return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
     }
 
-    // فحص ما إذا كان هناك VPN نشط يحجب بوابة ميكروتك المحلية
     fun isVpnActive(context: Context): Boolean {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
         val activeNetwork = cm.activeNetwork ?: return false
@@ -91,7 +90,6 @@ object MikrotikClient {
             return@withContext Pair(false, "أنت غير متصل بالواي فاي! يرجى الاتصال بشبكة ميكروتك أولا")
         }
 
-        // تحذير ذكي في حال وجود VPN نشط
         if (isVpnActive(context)) {
             return@withContext Pair(false, "يرجى تعطيل الـ VPN لكي تتمكن من الوصول لصفحة الراوتر")
         }
@@ -109,7 +107,7 @@ object MikrotikClient {
 
             val payloads = listOf(
                 Pair(cleanPin, ""),         // النمط اليمني: اسم مستخدم فقط
-                Pair(cleanPin, cleanPin)    // نمط التطابق
+                Pair(cleanPin, cleanPin)    // نمط اسم المستخدم المطابق لكلمة المرور
             )
 
             var lastDetectedError = ""
@@ -131,21 +129,26 @@ object MikrotikClient {
                     val postResponse = client.newCall(postRequest).execute()
                     val postResponseBody = postResponse.body?.string() ?: ""
 
+                    // فحص رد صفحة الدخول المباشر: إذا كان هناك خطأ صريح من ميكروتك
                     val foundError = extractMikrotikError(postResponseBody)
                     if (foundError != null) {
-                        lastDetectedError = foundError
-                        continue
+                        // الراوتر رفض الكرت صراحة! نعلن الرفض فوراً دون إضاعة الوقت في محاولات أخرى
+                        return@withContext Pair(false, foundError)
                     }
 
-                    kotlinx.coroutines.delay(400)
+                    // التحقق من صفحة الحالة
+                    kotlinx.coroutines.delay(350)
                     val verifyResult = checkActualLoginStatus(targetHost)
                     if (verifyResult.first) {
                         return@withContext Pair(true, "تم تسجيل الدخول وتفعيل الإنترنت بنجاح! كود الكرت: $cleanPin")
                     } else if (verifyResult.second.isNotEmpty()) {
-                        lastDetectedError = verifyResult.second
+                        // الراوتر أعاد التوجيه لصفحة الدخول صراحة (رفض الكرت)
+                        return@withContext Pair(false, "الكرت غير صحيح أو تم رفضه من الراوتر")
                     }
                 } catch (e: Exception) {
-                    lastDetectedError = "تعذر الوصول لبوابة الراوتر (${e.message ?: "خطأ اتصال"})"
+                    if (lastDetectedError.isEmpty()) {
+                        lastDetectedError = "تعذر الاتصال ببوابة الراوتر (${e.message ?: "خطأ اتصال"})"
+                    }
                     continue
                 }
             }
@@ -172,6 +175,7 @@ object MikrotikClient {
                 .build()
 
             strictNoRedirectClient.newCall(statusReq).execute().use { res ->
+                // إذا رد الراوتر بتحويل 302 نحو صفحة الدخول login: فالكرت مرفوض حتماً
                 if (res.code in 301..303) {
                     val location = res.header("Location") ?: ""
                     if (location.contains("login", ignoreCase = true)) {
@@ -212,16 +216,18 @@ object MikrotikClient {
         }
     }
 
+    // استخراج أسباب الخطأ الصريحة من قالب ميكروتك باللغتين العربية والإنجليزية
     private fun extractMikrotikError(html: String): String? {
-        val lower = html.toLowerCase()
+        val lower = html.lowercase()
         return when {
-            lower.contains("invalid username or password") -> "اسم المستخدم أو كلمة المرور غير صحيحة"
-            lower.contains("user") && lower.contains("not found") -> "رمز الكرت غير موجود بالنظام"
-            lower.contains("already logged in") -> "الكرت قيد الاستخدام في جهاز آخر حاليا"
-            lower.contains("uptime limit") -> "انتهى وقت الكرت المتاح"
-            lower.contains("traffic limit") -> "انتهى رصيد بيانات الكرت بالكامل"
-            lower.contains("no more sessions") -> "تم استنفاذ عدد الجلسات المسموح بها للكرت"
-            lower.contains("credit expired") -> "صلاحية الكرت منتهية"
+            lower.contains("invalid username or password") || lower.contains("غير صحيحة") || lower.contains("غير صحيح") || lower.contains("invalid") -> "رمز الكرت غير صحيح"
+            (lower.contains("user") && lower.contains("not found")) || lower.contains("غير موجود") || lower.contains("غير مسجل") -> "رمز الكرت غير موجود بالنظام"
+            lower.contains("already logged in") || lower.contains("مستخدم حاليا") || lower.contains("قيد الاستخدام") -> "الكرت قيد الاستخدام في جهاز آخر حاليا"
+            lower.contains("uptime limit") || lower.contains("انتهى وقت") -> "انتهى وقت الكرت المتاح"
+            lower.contains("traffic limit") || lower.contains("انتهى رصيد") || lower.contains("نفذ رصيد") -> "انتهى رصيد بيانات الكرت بالكامل"
+            lower.contains("no more sessions") || lower.contains("استنفاذ الجلسات") -> "تم استنفاذ عدد الجلسات المسموح بها للكرت"
+            lower.contains("credit expired") || lower.contains("منتهي الصلاحية") || lower.contains("منتهي") -> "صلاحية الكرت منتهية"
+            lower.contains("class=\"error\"") || lower.contains("class='error'") || lower.contains("class=\"alert\"") -> "الراوتر رفض الكرت يرجى التأكد من الرمز"
             else -> null
         }
     }

@@ -11,8 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -36,7 +35,9 @@ fun HistoryTab(
     ) {
         item {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics { isTraversalGroup = true },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -47,7 +48,10 @@ fun HistoryTab(
                     modifier = Modifier.semantics { heading() }
                 )
                 if (historyList.isNotEmpty()) {
-                    TextButton(onClick = onClearHistory) {
+                    TextButton(
+                        onClick = onClearHistory,
+                        modifier = Modifier.minimumInteractiveComponentSize()
+                    ) {
                         Icon(
                             Icons.Default.Delete,
                             contentDescription = null,
@@ -77,9 +81,17 @@ fun HistoryTab(
             }
         }
 
-        items(historyList) { item ->
+        items(
+            items = historyList,
+            key = { "${it.pin}_${it.timestamp}" }
+        ) { item ->
+            val dateStr = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(item.timestamp))
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = "كرت رقم ${item.pin}، تم الشحن في $dateStr"
+                    },
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Row(
@@ -97,16 +109,21 @@ fun HistoryTab(
                             fontFamily = FontFamily.Monospace
                         )
                         Text(
-                            text = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(item.timestamp)),
+                            text = dateStr,
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                     }
                     IconButton(
                         onClick = { onReLogin(item.pin) },
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier
+                            .size(48.dp)
+                            .minimumInteractiveComponentSize()
+                            .semantics {
+                                contentDescription = "إعادة تسجيل الدخول بالكرت ${item.pin}"
+                            }
                     ) {
-                        Icon(Icons.Default.Refresh, contentDescription = "إعادة تسجيل الدخول بهذا الكرت")
+                        Icon(Icons.Default.Refresh, contentDescription = null)
                     }
                 }
             }

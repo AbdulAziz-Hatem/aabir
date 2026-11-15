@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -13,11 +14,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.abdulaziz.aabir.feedback.FeedbackManager
@@ -53,7 +55,7 @@ fun SettingsTab(
             )
         }
 
-        // قسم الصوت وقارئ الشاشة ومحركات TTS
+        // قسم الصوت وقارئ الشاشة ومحركات TTS (مدمج دلالياً 100%)
         item {
             Card(shape = RoundedCornerShape(18.dp)) {
                 Column(
@@ -67,19 +69,34 @@ fun SettingsTab(
                         modifier = Modifier.semantics { heading() }
                     )
 
+                    // سطر الإشعارات الناطقة مدمج دلالياً بالكامل
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                onSettingsChange(settings.copy(voiceAnnounce = !settings.voiceAnnounce))
+                            }
+                            .minimumInteractiveComponentSize()
+                            .semantics(mergeDescendants = true) {
+                                role = Role.Switch
+                                stateDescription = if (settings.voiceAnnounce) "مفعل" else "معطل"
+                                contentDescription = "الإشعارات الناطقة"
+                            },
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("الإشعارات الناطقة (TTS)")
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("الإشعارات الناطقة (TTS)", fontWeight = FontWeight.SemiBold)
+                            Text("نطق حالة الكاميرا والكرت ونتيجة الدخول", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                        }
                         Switch(
                             checked = settings.voiceAnnounce,
-                            onCheckedChange = { onSettingsChange(settings.copy(voiceAnnounce = it)) }
+                            onCheckedChange = null
                         )
                     }
 
-                    // خيار اختيار محرك تحويل النص إلى كلام (Google vs Samsung vs System Default)
+                    // خيار اختيار محرك تحويل النص إلى كلام
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
                             text = "اختيار محرك تحويل النص إلى كلام:",
@@ -148,7 +165,8 @@ fun SettingsTab(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp),
+                            .height(48.dp)
+                            .minimumInteractiveComponentSize(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(Icons.Default.SettingsVoice, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -156,13 +174,25 @@ fun SettingsTab(
                         Text("فتح إعدادات الصوت في نظام أندرويد", fontSize = 12.sp)
                     }
 
+                    // سطر صوت رادار الكاميرا مدمج دلالياً
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                onSettingsChange(settings.copy(radarSound = !settings.radarSound))
+                            }
+                            .minimumInteractiveComponentSize()
+                            .semantics(mergeDescendants = true) {
+                                role = Role.Switch
+                                stateDescription = if (settings.radarSound) "مفعل" else "معطل"
+                                contentDescription = "صوت رادار الكاميرا"
+                            },
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("صوت رادار الكاميرا")
+                            Text("صوت رادار الكاميرا", fontWeight = FontWeight.SemiBold)
                             Text(
                                 "تكتكة ناعمة كل 2.8 ثانية لعدم الإزعاج",
                                 fontSize = 11.sp,
@@ -171,7 +201,7 @@ fun SettingsTab(
                         }
                         Switch(
                             checked = settings.radarSound,
-                            onCheckedChange = { onSettingsChange(settings.copy(radarSound = it)) }
+                            onCheckedChange = null
                         )
                     }
 
@@ -185,7 +215,8 @@ fun SettingsTab(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp),
+                            .height(48.dp)
+                            .minimumInteractiveComponentSize(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(Icons.Default.PlayArrow, contentDescription = null)
@@ -230,15 +261,30 @@ fun SettingsTab(
                         }
                     }
 
+                    // سطر الدخول التلقائي مدمج دلالياً
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                onSettingsChange(settings.copy(autoLoginOnScan = !settings.autoLoginOnScan))
+                            }
+                            .minimumInteractiveComponentSize()
+                            .semantics(mergeDescendants = true) {
+                                role = Role.Switch
+                                stateDescription = if (settings.autoLoginOnScan) "مفعل" else "معطل"
+                                contentDescription = "الدخول التلقائي فور المسح"
+                            },
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("الدخول التلقائي فور المسح")
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("الدخول التلقائي فور المسح", fontWeight = FontWeight.SemiBold)
+                            Text("إرسال الكود للراوتر بمجرد التقاطه", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                        }
                         Switch(
                             checked = settings.autoLoginOnScan,
-                            onCheckedChange = { onSettingsChange(settings.copy(autoLoginOnScan = it)) }
+                            onCheckedChange = null
                         )
                     }
 
@@ -250,6 +296,54 @@ fun SettingsTab(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     )
+                }
+            }
+        }
+
+        // قسم معايير كرت الواي فاي (أطوال الكود)
+        item {
+            Card(shape = RoundedCornerShape(18.dp)) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "معايير طول رمز الكرت",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.semantics { heading() }
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = settings.minLen.toString(),
+                            onValueChange = {
+                                val v = it.filter { ch -> ch.isDigit() }.toIntOrNull() ?: 1
+                                onSettingsChange(settings.copy(minLen = v))
+                            },
+                            label = { Text("الحد الأدنى") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        OutlinedTextField(
+                            value = settings.maxLen.toString(),
+                            onValueChange = {
+                                val v = it.filter { ch -> ch.isDigit() }.toIntOrNull() ?: 20
+                                onSettingsChange(settings.copy(maxLen = v))
+                            },
+                            label = { Text("الحد الأقصى") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
                 }
             }
         }
@@ -269,7 +363,8 @@ fun SettingsTab(
                 onClick = onResetDefaults,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .height(48.dp)
+                    .minimumInteractiveComponentSize(),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
