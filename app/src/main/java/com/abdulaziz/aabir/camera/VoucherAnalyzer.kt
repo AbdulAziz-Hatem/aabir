@@ -7,6 +7,7 @@ import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.core.content.ContextCompat
+import com.abdulaziz.aabir.network.MikrotikClient
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
@@ -22,6 +23,8 @@ class VoucherAnalyzer(
 
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
     private val isAnalyzing = AtomicBoolean(true)
+    private val isInstantCaptureRequested = AtomicBoolean(false)
+    private val hasDispatchedPin = AtomicBoolean(false)
     private var lastDetectionTime = 0L
     private var lastGuidanceTime = 0L
     private val mainExecutor = ContextCompat.getMainExecutor(context)
@@ -30,9 +33,15 @@ class VoucherAnalyzer(
         isAnalyzing.set(false)
     }
 
+    fun triggerInstantCapture() {
+        if (!hasDispatchedPin.get()) {
+            isInstantCaptureRequested.set(true)
+        }
+    }
+
     @OptIn(ExperimentalGetImage::class)
     override fun analyze(imageProxy: ImageProxy) {
-        if (!isAnalyzing.get()) {
+        if (!isAnalyzing.get() || hasDispatchedPin.get()) {
             imageProxy.close()
             return
         }
@@ -50,18 +59,31 @@ class VoucherAnalyzer(
 
         recognizer.process(inputImage)
             .addOnSuccessListener { visionText ->
-                if (!isAnalyzing.get()) return@addOnSuccessListener
+                if (!isAnalyzing.get() || hasDispatchedPin.get()) return@addOnSuccessListener
 
                 val now = System.currentTimeMillis()
                 val candidate = extractBestPin(visionText)
 
+                if (isInstantCaptureRequested.getAndSet(false)) {
+                    if (candidate != null) {
+                        if (hasDispatchedPin.compareAndSet(false, true)) {
+                            isAnalyzing.set(false)
+                            mainExecutor.execute { onPinDetected(candidate) }
+                        }
+                    } else {
+                        mainExecutor.execute {
+                            onGuidanceNeeded("لم يتم العثور على أرقام واضحة تأكد من وضع الكرت أمام الكاميرا")
+                        }
+                    }
+                    return@addOnSuccessListener
+                }
+
                 if (candidate != null) {
                     if (now - lastDetectionTime > 1500) {
                         lastDetectionTime = now
-                        isAnalyzing.set(false) // حارس ذري لمنع معالجة أي إطار لاحق
-                        // إرسال النتيجة حتماً إلى خيط الـ Main UI لمنع سباقات الخيوط
-                        mainExecutor.execute {
-                            onPinDetected(candidate)
+                        if (hasDispatchedPin.compareAndSet(false, true)) {
+                            isAnalyzing.set(false)
+                            mainExecutor.execute { onPinDetected(candidate) }
                         }
                     }
                 } else {
@@ -98,17 +120,17 @@ class VoucherAnalyzer(
         val boxHeight = box.height()
 
         val guideMsg = when {
-            boxHeight < 35 || boxWidth < (frameWidth * 0.18) -> "اقترب بالهاتف قليلاً"
-            boxWidth > (frameWidth * 0.88) -> "ابتعد بالهاتف قليلاً"
-            centerX < (frameWidth * 0.22) -> "حرّك الهاتف قليلاً إلى اليسار"
-            centerX > (frameWidth * 0.78) -> "حرّك الهاتف قليلاً إلى اليمين"
-            centerY < (frameHeight * 0.22) -> "أنزل الهاتف قليلاً"
-            centerY > (frameHeight * 0.78) -> "ارفع الهاتف قليلاً"
-            else -> "ثبّت يدك، جارٍ القراءة"
+            boxHeight < 20 || boxWidth < (frameWidth * 0.12) -> "اقترب بالهاتف قليلا"
+            boxWidth > (frameWidth * 0.90) -> "ابتعد بالهاتف قليلا"
+            centerX < (frameWidth * 0.20) -> "حرك الهاتف قليلا إلى اليسار"
+            centerX > (frameWidth * 0.80) -> "حرك الهاتف قليلا إلى اليمين"
+            centerY < (frameHeight * 0.20) -> "انزل الهاتف قليلا"
+            centerY > (frameHeight * 0.80) -> "ارفع الهاتف قليلا"
+            else -> "ثبت يدك جار القراءة"
         }
 
         mainExecutor.execute {
-            if (isAnalyzing.get()) {
+            if (isAnalyzing.get() && !hasDispatchedPin.get()) {
                 onGuidanceNeeded(guideMsg)
             }
         }
@@ -122,13 +144,17 @@ class VoucherAnalyzer(
                 val height = line.boundingBox?.height() ?: 0
                 val cleanedText = cleanOcrMistakes(line.text)
                 
+                // دمج الأرقام المتتالية المفصولة بمسافات أو شرطات (مثال: 4920-5819 -> 49205819)
+                val joinedText = cleanedText.replace(Regex("""(?<=\d)[\s-]+(?=\d)"""), "")
+                
                 val regex = Regex("""\b\d{4,16}\b""")
-                val matches = regex.findAll(cleanedText)
+                val matches = regex.findAll(joinedText)
 
                 for (match in matches) {
-                    val digits = match.value
-                    if (isValidVoucherPin(digits)) {
-                        candidates.add(Pair(digits, height))
+                    val rawDigits = match.value
+                    val asciiDigits = MikrotikClient.normalizeToAsciiDigits(rawDigits)
+                    if (isValidVoucherPin(asciiDigits)) {
+                        candidates.add(Pair(asciiDigits, height))
                     }
                 }
             }

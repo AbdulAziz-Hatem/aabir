@@ -5,20 +5,26 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.speech.tts.TextToSpeech
 import android.speech.tts.Voice
+import android.widget.Toast
 import kotlinx.coroutines.*
 import java.util.Locale
 import kotlin.math.sin
 
-class FeedbackManager(private val context: Context) : TextToSpeech.OnInitListener {
+data class TtsEngineItem(val packageName: String, val label: String)
+
+class FeedbackManager(private val context: Context, private var enginePackage: String = "") : TextToSpeech.OnInitListener {
 
     private var tts: TextToSpeech? = null
     private var isTtsReady = false
     private val audioScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     private val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
@@ -28,14 +34,43 @@ class FeedbackManager(private val context: Context) : TextToSpeech.OnInitListene
         context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
     }
 
-    // عينات PCM المحسوبة مسبقاً في الذاكرة لتوفير المعالج والبطارية
     private val sampleRate = 44100
     private val radarBuffer: ShortArray by lazy { generateSineBuffer(880.0, 25, 0.25f) }
     private val errorBuffer: ShortArray by lazy { generateErrorBuffer() }
     private val successBuffer: ShortArray by lazy { generateSuccessChordBuffer() }
 
     init {
-        tts = TextToSpeech(context, this)
+        initTts(enginePackage)
+    }
+
+    private fun initTts(pkg: String) {
+        try {
+            tts?.stop()
+            tts?.shutdown()
+        } catch (ignored: Exception) {}
+        isTtsReady = false
+        enginePackage = pkg
+        tts = if (pkg.isNotEmpty()) {
+            TextToSpeech(context, this, pkg)
+        } else {
+            TextToSpeech(context, this)
+        }
+    }
+
+    // تغيير محرك تحويل النص إلى كلام ديناميكياً
+    fun setEngine(pkg: String) {
+        if (pkg != enginePackage) {
+            initTts(pkg)
+        }
+    }
+
+    // قراءة كافة محركات تحويل النص إلى كلام المثبتة على الهاتف (Google, Samsung, Vocalizer, etc.)
+    fun getInstalledEngines(): List<TtsEngineItem> {
+        return try {
+            tts?.engines?.map { TtsEngineItem(it.name, it.label) } ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
     override fun onInit(status: Int) {
@@ -56,12 +91,18 @@ class FeedbackManager(private val context: Context) : TextToSpeech.OnInitListene
         }
     }
 
+    // إرسال Toast نظام حقيقي لقارئ الشاشة (TalkBack / Jieshuo)
+    fun showToast(message: String) {
+        mainHandler.post {
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     fun getAvailableVoices(): List<Voice> {
         return tts?.voices?.filter { it.locale.language.startsWith("ar") || it.locale.language.startsWith("en") }
             ?.toList() ?: emptyList()
     }
 
-    // توليد مسبق لموجة جيبية نقية مع تطبيق Envelope
     private fun generateSineBuffer(freqHz: Double, durationMs: Int, volume: Float): ShortArray {
         val numSamples = (sampleRate * (durationMs / 1000.0)).toInt()
         val buffer = ShortArray(numSamples)
@@ -77,7 +118,6 @@ class FeedbackManager(private val context: Context) : TextToSpeech.OnInitListene
         return buffer
     }
 
-    // توليد كورد النجاح الثلاثي المتصاعد (C5 -> E5 -> G5)
     private fun generateSuccessChordBuffer(): ShortArray {
         val c5 = generateSineBuffer(523.25, 90, 0.6f)
         val e5 = generateSineBuffer(659.25, 90, 0.65f)
@@ -97,7 +137,6 @@ class FeedbackManager(private val context: Context) : TextToSpeech.OnInitListene
         return result
     }
 
-    // توليد نغمة الخطأ الحاسمة الهابطة (280Hz -> 130Hz)
     private fun generateErrorBuffer(): ShortArray {
         val high = generateSineBuffer(280.0, 110, 0.75f)
         val gap = ShortArray((sampleRate * 0.04).toInt())
@@ -114,7 +153,6 @@ class FeedbackManager(private val context: Context) : TextToSpeech.OnInitListene
         return result
     }
 
-    // تشغيل العازل في مسار صوتي آمن
     private fun playBufferAsync(buffer: ShortArray) {
         audioScope.launch {
             var track: AudioTrack? = null

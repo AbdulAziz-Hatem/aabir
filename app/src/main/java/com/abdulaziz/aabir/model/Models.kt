@@ -10,6 +10,7 @@ data class AppSettings(
     val autoLoginOnScan: Boolean = true,
     val voiceAnnounce: Boolean = true,
     val selectedVoiceName: String = "",
+    val selectedTtsEngine: String = "", // محرك تحويل النص إلى كلام المختار (Google, Samsung, System Default)
     val radarSound: Boolean = true,
     val minLen: Int = 4,
     val maxLen: Int = 16,

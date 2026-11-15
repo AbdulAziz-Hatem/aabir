@@ -13,6 +13,7 @@ class StorageManager(context: Context) {
             autoLoginOnScan = prefs.getBoolean("autoLoginOnScan", true),
             voiceAnnounce = prefs.getBoolean("voiceAnnounce", true),
             selectedVoiceName = prefs.getString("selectedVoiceName", "") ?: "",
+            selectedTtsEngine = prefs.getString("selectedTtsEngine", "") ?: "",
             radarSound = prefs.getBoolean("radarSound", true),
             minLen = prefs.getInt("minLen", 4),
             maxLen = prefs.getInt("maxLen", 16),
@@ -26,6 +27,7 @@ class StorageManager(context: Context) {
             .putBoolean("autoLoginOnScan", settings.autoLoginOnScan)
             .putBoolean("voiceAnnounce", settings.voiceAnnounce)
             .putString("selectedVoiceName", settings.selectedVoiceName)
+            .putString("selectedTtsEngine", settings.selectedTtsEngine)
             .putBoolean("radarSound", settings.radarSound)
             .putInt("minLen", settings.minLen)
             .putInt("maxLen", settings.maxLen)

@@ -1,20 +1,35 @@
 package com.abdulaziz.aabir.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.*
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.*
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -51,7 +66,23 @@ fun MainScreen(
     var isScanning by remember { mutableStateOf(false) }
     var isLoggingIn by remember { mutableStateOf(false) }
     var torchState by remember { mutableStateOf(false) }
+    var currentZoom by remember { mutableStateOf(2.2f) }
+    var instantCaptureCounter by remember { mutableStateOf(0) }
     var activeWifiGateway by remember { mutableStateOf("") }
+
+    // دالة بث موحدة تمنع النطق مرتين بشكل قاطع
+    val announceFeedback: (String) -> Unit = { message ->
+        if (settings.voiceAnnounce) {
+            feedback.speak(message, true, settings.selectedVoiceName)
+        } else {
+            feedback.showToast(message)
+        }
+    }
+
+    // تطبيق محرك TTS المختار في الإعدادات
+    LaunchedEffect(settings.selectedTtsEngine) {
+        feedback.setEngine(settings.selectedTtsEngine)
+    }
 
     // مراقبة دورة حياة النظام: إطفاء الكاميرا والفلاش فوراً عند مغادرة التطبيق
     DisposableEffect(lifecycleOwner) {
@@ -91,17 +122,20 @@ fun MainScreen(
     }
 
     val executeLogin: (String) -> Unit = { pinToLogin ->
+        // حارس منع النقر المزدوج وسباقات الخيوط
+        if (isLoggingIn) return@executeLogin
+
         val clean = pinToLogin.filter { it.isDigit() }
         if (clean.length < settings.minLen) {
-            val alertMsg = if (clean.isEmpty()) "يرجى كتابة أو مسح رمز الكرت أولاً" else "رمز الكرت غير مكتمل، مطلوب ${settings.minLen} أرقام على الأقل"
+            val alertMsg = if (clean.isEmpty()) "يرجى كتابة أو مسح رمز الكرت أولا" else "رمز الكرت غير مكتمل مطلوب ${settings.minLen} أرقام على الأقل"
             statusText = alertMsg
             feedback.playErrorTone()
             feedback.vibrateError()
-            feedback.speak(alertMsg, settings.voiceAnnounce, settings.selectedVoiceName)
+            announceFeedback(alertMsg)
         } else {
             isLoggingIn = true
-            statusText = "جارٍ تسجيل الدخول بالكود: $clean"
-            feedback.speak("جارٍ تسجيل الدخول في الشبكة", settings.voiceAnnounce, settings.selectedVoiceName)
+            statusText = "جار تسجيل الدخول بالكود $clean"
+            announceFeedback("جار تسجيل الدخول في الشبكة")
 
             scope.launch {
                 val (success, msg) = MikrotikClient.login(context, clean, settings.gatewayIp)
@@ -111,14 +145,14 @@ fun MainScreen(
                 if (success) {
                     feedback.playSuccessChord()
                     feedback.vibrateSuccess()
-                    feedback.speak(msg, settings.voiceAnnounce, settings.selectedVoiceName)
+                    announceFeedback(msg)
                     val updated = listOf(VoucherRecord(clean)) + historyList.filter { it.pin != clean }
                     historyList = updated
                     storage.saveHistory(updated)
                 } else {
                     feedback.playErrorTone()
                     feedback.vibrateError()
-                    feedback.speak(msg, settings.voiceAnnounce, settings.selectedVoiceName)
+                    announceFeedback(msg)
                 }
             }
         }
@@ -183,6 +217,8 @@ fun MainScreen(
                     Box(modifier = Modifier.fillMaxSize()) {
                         CameraPreview(
                             torchEnabled = torchState,
+                            zoomRatio = currentZoom,
+                            instantCaptureTrigger = instantCaptureCounter,
                             radarEnabled = settings.radarSound,
                             minLen = settings.minLen,
                             maxLen = settings.maxLen,
@@ -197,22 +233,45 @@ fun MainScreen(
                                     executeLogin(detectedPin)
                                 } else {
                                     feedback.playSuccessChord()
-                                    statusText = "تم التقاط الكود: $detectedPin"
-                                    feedback.speak(
-                                        "تم التقاط الكود $detectedPin، اضغط زر الدخول",
-                                        settings.voiceAnnounce,
-                                        settings.selectedVoiceName
-                                    )
+                                    statusText = "تم التقاط الكود $detectedPin"
+                                    announceFeedback("تم التقاط الكود $detectedPin اضغط زر الدخول")
                                 }
                             },
                             onGuidanceNeeded = { guideMsg ->
-                                feedback.speak(guideMsg, settings.voiceAnnounce, settings.selectedVoiceName)
+                                // نطق التوجيه مرة واحدة فقط دون ازدواجية صوتية
+                                announceFeedback(guideMsg)
                             },
                             onRadarPulse = {
                                 feedback.playRadarTick()
                             }
                         )
 
+                        // إطار التصويب البصري عالي التباين في منتصف الشاشة للكروت الصغيرة
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.90f)
+                                    .height(115.dp)
+                                    .border(2.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(18.dp))
+                                    .background(Color.Black.copy(alpha = 0.25f), RoundedCornerShape(18.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "ضع خانة الكرت الصغير داخل هذا الإطار",
+                                    color = Color.White.copy(alpha = 0.9f),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.clearAndSetSemantics {}
+                                )
+                            }
+                        }
+
+                        // شريط أدوات الكاميرا العلوية (زر الرجوع، مفتاح الزوم، زر الفلاش)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -235,6 +294,38 @@ fun MainScreen(
                                 Icon(Icons.Default.Close, contentDescription = null, tint = Color.White)
                             }
 
+                            // مفتاح التكبير السريع للكروت الصغيرة
+                            Surface(
+                                color = Color.Black.copy(alpha = 0.65f),
+                                shape = RoundedCornerShape(20.dp),
+                                modifier = Modifier
+                                    .height(44.dp)
+                                    .clickable {
+                                        val newZoom = if (currentZoom >= 2.0f) 1.0f else 2.2f
+                                        currentZoom = newZoom
+                                        val zoomMsg = if (newZoom >= 2.0f) "تكبير للكروت الصغيرة" else "تكبير عادي"
+                                        announceFeedback(zoomMsg)
+                                    }
+                                    .semantics {
+                                        role = Role.Button
+                                        contentDescription = if (currentZoom >= 2.0f) "مفتاح التكبير مفعل للكروت الصغيرة انقر للتحويل إلى عادي" else "مفتاح التكبير مفعل للعادي انقر للتحويل إلى الكروت الصغيرة"
+                                    }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(Icons.Default.ZoomIn, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                    Text(
+                                        text = if (currentZoom >= 2.0f) "2.2x مصغر" else "1.0x عادي",
+                                        color = Color.White,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
                             IconButton(
                                 onClick = {
                                     torchState = !torchState
@@ -254,6 +345,38 @@ fun MainScreen(
                                 )
                             }
                         }
+
+                        // زر الالتقاط الفوري المباشر (أسفل الشاشة)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .navigationBarsPadding()
+                                .padding(bottom = 32.dp),
+                            contentAlignment = Alignment.BottomCenter
+                        ) {
+                            Button(
+                                onClick = {
+                                    instantCaptureCounter++
+                                    feedback.vibrateFound()
+                                    announceFeedback("جار الالتقاط الفوري")
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth(0.78f)
+                                    .height(56.dp),
+                                shape = RoundedCornerShape(28.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary
+                                )
+                            ) {
+                                Icon(Icons.Default.Camera, contentDescription = null, modifier = Modifier.size(24.dp))
+                                Spacer(Modifier.width(10.dp))
+                                Text(
+                                    text = "التقاط فوري الآن",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
                 } else {
                     when (currentTab) {
@@ -268,16 +391,12 @@ fun MainScreen(
                                     isScanning = true
                                     torchState = true
                                     onToggleTorch(true)
-                                    feedback.speak(
-                                        "الكاميرا تعمل، وجّه الهاتف نحو الكرت",
-                                        settings.voiceAnnounce,
-                                        settings.selectedVoiceName
-                                    )
+                                    announceFeedback("الكاميرا تعمل وجّه الهاتف نحو الكرت")
                                 },
                                 onExecuteLogin = executeLogin,
                                 onCopySuccess = {
                                     statusText = "تم نسخ الرمز إلى الحافظة"
-                                    feedback.speak("تم النسخ", settings.voiceAnnounce, settings.selectedVoiceName)
+                                    announceFeedback("تم النسخ")
                                 }
                             )
                         }
