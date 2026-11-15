@@ -58,8 +58,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun MainScreen(
     feedback: FeedbackManager,
-    onOpenOnboarding: () -> Unit = {},
-    onToggleTorch: (Boolean) -> Unit
+    onOpenOnboarding: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -86,7 +85,6 @@ fun MainScreen(
         if (isGranted) {
             isScanning = true
             torchState = true
-            onToggleTorch(true)
             feedback.speak("الكاميرا تعمل وجّه الهاتف نحو الكرت", settings.voiceAnnounce, settings.selectedVoiceName)
         } else {
             feedback.speak("تم رفض إذن الكاميرا يمكنك استخدام الإدخال اليدوي", settings.voiceAnnounce, settings.selectedVoiceName)
@@ -113,7 +111,6 @@ fun MainScreen(
                 if (isScanning) {
                     isScanning = false
                     torchState = false
-                    onToggleTorch(false)
                 }
             }
         }
@@ -131,7 +128,6 @@ fun MainScreen(
     BackHandler(enabled = isScanning) {
         isScanning = false
         torchState = false
-        onToggleTorch(false)
     }
 
     BackHandler(enabled = !isScanning && !showAboutScreen && currentTab != AppTab.SCAN) {
@@ -254,7 +250,6 @@ fun MainScreen(
                                     pinText = detectedPin
                                     isScanning = false
                                     torchState = false
-                                    onToggleTorch(false)
                                     feedback.vibrateFound()
 
                                     if (settings.autoLoginOnScan) {
@@ -316,7 +311,6 @@ fun MainScreen(
                                     onClick = {
                                         isScanning = false
                                         torchState = false
-                                        onToggleTorch(false)
                                     },
                                     modifier = Modifier
                                         .size(48.dp)
@@ -360,7 +354,6 @@ fun MainScreen(
                                 IconButton(
                                     onClick = {
                                         torchState = !torchState
-                                        onToggleTorch(torchState)
                                     },
                                     modifier = Modifier
                                         .size(48.dp)
@@ -423,7 +416,6 @@ fun MainScreen(
                                         if (isGranted) {
                                             isScanning = true
                                             torchState = true
-                                            onToggleTorch(true)
                                             announceFeedback("الكاميرا تعمل وجّه الهاتف نحو الكرت")
                                         } else {
                                             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)

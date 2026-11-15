@@ -173,7 +173,7 @@ fun SettingsTab(
                     ) {
                         Icon(Icons.Default.SettingsVoice, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("فتح إعدادات الصوت في نظام أندرويد", fontSize = 12.sp)
+                        Text("فتح إعدادات الصوت في نظام Android", fontSize = 12.sp)
                     }
 
                     // سطر رادار الكاميرا
@@ -229,7 +229,7 @@ fun SettingsTab(
             }
         }
 
-        // بطاقة 2: قسم شبكة ميكروتك (Hotspot)
+        // بطاقة 2: قسم شبكة MikroTik (Hotspot)
         item {
             Card(shape = RoundedCornerShape(18.dp)) {
                 Column(
@@ -237,7 +237,7 @@ fun SettingsTab(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "إعدادات شبكة ميكروتك (Hotspot)",
+                        text = "إعدادات شبكة MikroTik (Hotspot)",
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.semantics { heading() }
@@ -253,7 +253,7 @@ fun SettingsTab(
                                 modifier = Modifier.padding(12.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("بوابة الواي فاي المتصلة:")
+                                Text("بوابة Wi-Fi المتصلة:")
                                 Text(
                                     activeWifiGateway,
                                     fontWeight = FontWeight.Bold,
@@ -302,7 +302,7 @@ fun SettingsTab(
             }
         }
 
-        // بطاقة 3: قسم معايير كرت الواي فاي (أطوال الكود والمرونة)
+        // بطاقة 3: قسم معايير كرت Wi-Fi (أطوال الكود والمرونة)
         item {
             Card(shape = RoundedCornerShape(18.dp)) {
                 Column(

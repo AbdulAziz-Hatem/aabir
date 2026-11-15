@@ -88,6 +88,7 @@ fun CameraPreview(
         onDispose {
             analyzer.stop()
             try {
+                camera?.cameraControl?.enableTorch(false)
                 cameraProviderInstance?.unbindAll()
             } catch (ignored: Exception) {}
             cameraExecutor.shutdown()

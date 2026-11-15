@@ -87,7 +87,7 @@ object MikrotikClient {
         }
 
         if (!isWifiConnected(context)) {
-            return@withContext Pair(false, "أنت غير متصل بالواي فاي! يرجى الاتصال بشبكة ميكروتك أولا")
+            return@withContext Pair(false, "أنت غير متصل بWi-Fi! يرجى الاتصال بشبكة MikroTik أولا")
         }
 
         if (isVpnActive(context)) {
@@ -129,7 +129,7 @@ object MikrotikClient {
                     val postResponse = client.newCall(postRequest).execute()
                     val postResponseBody = postResponse.body?.string() ?: ""
 
-                    // فحص رد صفحة الدخول المباشر: إذا كان هناك خطأ صريح من ميكروتك
+                    // فحص رد صفحة الدخول المباشر: إذا كان هناك خطأ صريح من MikroTik
                     val foundError = extractMikrotikError(postResponseBody)
                     if (foundError != null) {
                         // الراوتر رفض الكرت صراحة! نعلن الرفض فوراً دون إضاعة الوقت في محاولات أخرى
@@ -216,7 +216,7 @@ object MikrotikClient {
         }
     }
 
-    // استخراج أسباب الخطأ الصريحة من قالب ميكروتك باللغتين العربية والإنجليزية
+    // استخراج أسباب الخطأ الصريحة من قالب MikroTik باللغتين العربية والإنجليزية
     private fun extractMikrotikError(html: String): String? {
         val lower = html.lowercase()
         return when {

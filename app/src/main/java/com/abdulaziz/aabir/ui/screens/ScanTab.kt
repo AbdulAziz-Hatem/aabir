@@ -60,7 +60,7 @@ fun ScanTab(
                     .clickable { onStartScan() }
                     .semantics(mergeDescendants = true) {
                         role = Role.Button
-                        contentDescription = "امسح كرت الواي فاي، انقر لفتح الكاميرا والمسح مع التوجيه الصوتي"
+                        contentDescription = "امسح كرت Wi-Fi، انقر لفتح الكاميرا والمسح مع التوجيه الصوتي"
                     },
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
@@ -85,7 +85,7 @@ fun ScanTab(
                         )
                     }
                     Text(
-                        text = "امسح كرت الواي فاي",
+                        text = "امسح كرت Wi-Fi",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.semantics { heading() }
@@ -113,7 +113,7 @@ fun ScanTab(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "رمز كرت الواي فاي (PIN)",
+                        text = "رمز كرت Wi-Fi (PIN)",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)

@@ -1,7 +1,5 @@
 package com.abdulaziz.aabir
 
-import android.content.Context
-import android.hardware.camera2.CameraManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -17,8 +15,6 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var feedback: FeedbackManager
     private lateinit var storage: StorageManager
-    private var cameraManager: CameraManager? = null
-    private var cameraId: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,13 +23,6 @@ class MainActivity : ComponentActivity() {
         storage = StorageManager(this)
         val initialSettings = storage.loadSettings()
         feedback = FeedbackManager(this, initialSettings.selectedTtsEngine)
-        cameraManager = getSystemService(Context.CAMERA_SERVICE) as? CameraManager
-        try {
-            val ids = cameraManager?.cameraIdList
-            if (!ids.isNullOrEmpty()) {
-                cameraId = ids[0]
-            }
-        } catch (ignored: Exception) {}
 
         setContent {
             var showWelcome by remember { mutableStateOf(storage.loadSettings().isFirstLaunch) }
@@ -50,14 +39,7 @@ class MainActivity : ComponentActivity() {
                 } else {
                     MainScreen(
                         feedback = feedback,
-                        onOpenOnboarding = { showWelcome = true },
-                        onToggleTorch = { enabled ->
-                            try {
-                                if (cameraId != null) {
-                                    cameraManager?.setTorchMode(cameraId!!, enabled)
-                                }
-                            } catch (ignored: Exception) {}
-                        }
+                        onOpenOnboarding = { showWelcome = true }
                     )
                 }
             }
