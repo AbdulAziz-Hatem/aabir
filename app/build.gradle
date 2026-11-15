@@ -18,8 +18,8 @@ android {
         applicationId 'com.abdulaziz.netpass'
         minSdk 24
         targetSdk 35
-        versionCode 16
-        versionName "1.1.0-alpha04"
+        versionCode 17
+        versionName "1.1.0-alpha06"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary true
@@ -41,6 +41,8 @@ android {
                 storePassword releaseStorePassword
                 keyAlias releaseKeyAlias
                 keyPassword releaseKeyPassword
+                v1SigningEnabled true
+                v2SigningEnabled true
             }
         }
     }
