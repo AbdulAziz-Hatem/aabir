@@ -27,6 +27,8 @@ class VoucherAnalyzer(
     private val hasDispatchedPin = AtomicBoolean(false)
     private var lastDetectionTime = 0L
     private var lastGuidanceTime = 0L
+    private var hasPromptedEmpty = false
+    private var lastGuidanceMsg = ""
     private val mainExecutor = ContextCompat.getMainExecutor(context)
 
     fun stop() {
@@ -101,15 +103,23 @@ class VoucherAnalyzer(
             }
     }
 
+    // حساب التوجيه المكاني مع حماية الصمت ومنع التكرار
     private fun calculateSpatialGuidance(
         visionText: com.google.mlkit.vision.text.Text,
         frameWidth: Int,
         frameHeight: Int
     ) {
         if (visionText.textBlocks.isEmpty()) {
-            mainExecutor.execute { onGuidanceNeeded("ضع الكرت أمام الكاميرا") }
+            // نطق العبارة مرة واحدة فقط عند فتح الكاميرا ثم الصمت التام
+            if (!hasPromptedEmpty) {
+                hasPromptedEmpty = true
+                mainExecutor.execute { onGuidanceNeeded("ضع الكرت أمام الكاميرا") }
+            }
             return
         }
+
+        // بمجرد ظهور أي نص، نعيد تفعيل إمكانية التنبيه لاحقاً إن اختفى
+        hasPromptedEmpty = false
 
         val mainBlock = visionText.textBlocks.maxByOrNull { it.boundingBox?.height() ?: 0 }
         val box = mainBlock?.boundingBox ?: return
@@ -126,12 +136,16 @@ class VoucherAnalyzer(
             centerX > (frameWidth * 0.80) -> "حرك الهاتف قليلا إلى اليمين"
             centerY < (frameHeight * 0.20) -> "انزل الهاتف قليلا"
             centerY > (frameHeight * 0.80) -> "ارفع الهاتف قليلا"
-            else -> "ثبت يدك جار القراءة"
+            else -> null // داخل النطاق المركزي -> صمت تام ومريح
         }
 
-        mainExecutor.execute {
-            if (isAnalyzing.get() && !hasDispatchedPin.get()) {
-                onGuidanceNeeded(guideMsg)
+        // لا ننطق إلا إذا كان هناك توجيه حقيقي يختلف عن التوجيه السابق
+        if (guideMsg != null && guideMsg != lastGuidanceMsg) {
+            lastGuidanceMsg = guideMsg
+            mainExecutor.execute {
+                if (isAnalyzing.get() && !hasDispatchedPin.get()) {
+                    onGuidanceNeeded(guideMsg)
+                }
             }
         }
     }
@@ -144,7 +158,7 @@ class VoucherAnalyzer(
                 val height = line.boundingBox?.height() ?: 0
                 val cleanedText = cleanOcrMistakes(line.text)
                 
-                // دمج الأرقام المتتالية المفصولة بمسافات أو شرطات (مثال: 4920-5819 -> 49205819)
+                // دمج الأرقام المتتالية المفصولة بمسافات أو شرطات
                 val joinedText = cleanedText.replace(Regex("""(?<=\d)[\s-]+(?=\d)"""), "")
                 
                 val regex = Regex("""\b\d{4,16}\b""")
