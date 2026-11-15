@@ -1,4 +1,4 @@
-package com.abdulaziz.aabir.camera
+package com.abdulaziz.netpass.camera
 
 import android.content.Context
 import android.util.Log
@@ -7,7 +7,7 @@ import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.core.content.ContextCompat
-import com.abdulaziz.aabir.network.MikrotikClient
+import com.abdulaziz.netpass.network.MikrotikClient
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
@@ -102,7 +102,7 @@ class VoucherAnalyzer(
                 }
             }
             .addOnFailureListener { e ->
-                Log.e("AabirAnalyzer", "خطأ في تحليل إطار الكاميرا", e)
+                Log.e("NetPassAnalyzer", "خطأ في تحليل إطار الكاميرا", e)
             }
             .addOnCompleteListener {
                 imageProxy.close()

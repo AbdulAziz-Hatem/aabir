@@ -1,4 +1,4 @@
-package com.abdulaziz.aabir.ui.screens
+package com.abdulaziz.netpass.ui.screens
 
 import android.content.Intent
 import android.net.Uri
@@ -39,7 +39,7 @@ fun AboutScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("عن تطبيق عَابِر والمطور", fontWeight = FontWeight.Bold, fontSize = 18.sp) },
+                title = { Text("عن تطبيق نِت بَاس والمطور", fontWeight = FontWeight.Bold, fontSize = 18.sp) },
                 navigationIcon = {
                     IconButton(
                         onClick = onBack,
@@ -108,7 +108,7 @@ fun AboutScreen(
                 Spacer(Modifier.height(12.dp))
 
                 Text(
-                    text = "عَابِر | Aabir",
+                    text = "نِت بَاس | NetPass",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.semantics { heading() }
@@ -153,7 +153,7 @@ fun AboutScreen(
                             ) {
                                 Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                             }
-                            Text("قصة نشأة تطبيق عَابِر", fontWeight = FontWeight.Bold, fontSize = 15.sp, modifier = Modifier.semantics { heading() })
+                            Text("قصة نشأة تطبيق نِت بَاس", fontWeight = FontWeight.Bold, fontSize = 15.sp, modifier = Modifier.semantics { heading() })
                         }
 
                         Text(
@@ -214,7 +214,7 @@ fun AboutScreen(
 
                         Button(
                             onClick = {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/AbdulAziz-Hatem/aabir"))
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/AbdulAziz-Hatem/netpass"))
                                 context.startActivity(intent)
                             },
                             modifier = Modifier

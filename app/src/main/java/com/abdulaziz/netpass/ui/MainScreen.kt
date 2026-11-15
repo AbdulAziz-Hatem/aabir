@@ -1,4 +1,4 @@
-package com.abdulaziz.aabir.ui
+package com.abdulaziz.netpass.ui
 
 import android.Manifest
 import android.content.ClipData
@@ -41,17 +41,17 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.abdulaziz.aabir.camera.CameraPreview
-import com.abdulaziz.aabir.feedback.FeedbackManager
-import com.abdulaziz.aabir.model.AppSettings
-import com.abdulaziz.aabir.model.AppTab
-import com.abdulaziz.aabir.model.StorageManager
-import com.abdulaziz.aabir.model.VoucherRecord
-import com.abdulaziz.aabir.network.MikrotikClient
-import com.abdulaziz.aabir.ui.screens.AboutScreen
-import com.abdulaziz.aabir.ui.screens.HistoryTab
-import com.abdulaziz.aabir.ui.screens.ScanTab
-import com.abdulaziz.aabir.ui.screens.SettingsTab
+import com.abdulaziz.netpass.camera.CameraPreview
+import com.abdulaziz.netpass.feedback.FeedbackManager
+import com.abdulaziz.netpass.model.AppSettings
+import com.abdulaziz.netpass.model.AppTab
+import com.abdulaziz.netpass.model.StorageManager
+import com.abdulaziz.netpass.model.VoucherRecord
+import com.abdulaziz.netpass.network.MikrotikClient
+import com.abdulaziz.netpass.ui.screens.AboutScreen
+import com.abdulaziz.netpass.ui.screens.HistoryTab
+import com.abdulaziz.netpass.ui.screens.ScanTab
+import com.abdulaziz.netpass.ui.screens.SettingsTab
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -189,7 +189,7 @@ fun MainScreen(
                         TopAppBar(
                             title = {
                                 Column {
-                                    Text("عَابِر", fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                                    Text("نِت بَاس", fontWeight = FontWeight.Bold, fontSize = 22.sp)
                                     Text("اعبُر إلى شبكتك بلمحة بصر", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                                 }
                             },

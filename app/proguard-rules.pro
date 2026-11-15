@@ -1,6 +1,6 @@
 # قواعد Proguard لمشروع عابر لحماية المحركات بعد الضغط
--keep class com.abdulaziz.aabir.model.** { *; }
--keep class com.abdulaziz.aabir.network.** { *; }
+-keep class com.abdulaziz.netpass.model.** { *; }
+-keep class com.abdulaziz.netpass.network.** { *; }
 
 # محرك الذكاء الاصطناعي Google ML Kit
 -keep class com.google.mlkit.** { *; }

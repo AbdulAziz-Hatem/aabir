@@ -1,4 +1,4 @@
-package com.abdulaziz.aabir.model
+package com.abdulaziz.netpass.model
 
 data class VoucherRecord(
     val pin: String,

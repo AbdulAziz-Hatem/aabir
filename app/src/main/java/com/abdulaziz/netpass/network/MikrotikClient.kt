@@ -1,4 +1,4 @@
-package com.abdulaziz.aabir.network
+package com.abdulaziz.netpass.network
 
 import android.content.Context
 import android.net.ConnectivityManager

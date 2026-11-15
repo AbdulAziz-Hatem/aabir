@@ -1,4 +1,4 @@
-package com.abdulaziz.aabir.ui.screens
+package com.abdulaziz.netpass.ui.screens
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -28,7 +28,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.abdulaziz.aabir.model.AppSettings
+import com.abdulaziz.netpass.model.AppSettings
 
 @Composable
 fun ScanTab(

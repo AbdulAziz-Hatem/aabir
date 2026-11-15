@@ -1,11 +1,11 @@
-package com.abdulaziz.aabir.model
+package com.abdulaziz.netpass.model
 
 import android.content.Context
 import android.content.SharedPreferences
 
 class StorageManager(context: Context) {
 
-    private val prefs: SharedPreferences = context.getSharedPreferences("aabir_secure_prefs", Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences = context.getSharedPreferences("netpass_prefs", Context.MODE_PRIVATE)
 
     fun loadSettings(): AppSettings {
         return AppSettings(

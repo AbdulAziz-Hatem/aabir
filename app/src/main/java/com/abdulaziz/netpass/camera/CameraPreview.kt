@@ -1,4 +1,4 @@
-package com.abdulaziz.aabir.camera
+package com.abdulaziz.netpass.camera
 
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider

@@ -1,15 +1,15 @@
-package com.abdulaziz.aabir
+package com.abdulaziz.netpass
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
-import com.abdulaziz.aabir.feedback.FeedbackManager
-import com.abdulaziz.aabir.model.StorageManager
-import com.abdulaziz.aabir.ui.AabirTheme
-import com.abdulaziz.aabir.ui.MainScreen
-import com.abdulaziz.aabir.ui.screens.WelcomeScreen
+import com.abdulaziz.netpass.feedback.FeedbackManager
+import com.abdulaziz.netpass.model.StorageManager
+import com.abdulaziz.netpass.ui.NetPassTheme
+import com.abdulaziz.netpass.ui.MainScreen
+import com.abdulaziz.netpass.ui.screens.WelcomeScreen
 
 class MainActivity : ComponentActivity() {
 
@@ -27,7 +27,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             var showWelcome by remember { mutableStateOf(storage.loadSettings().isFirstLaunch) }
 
-            AabirTheme {
+            NetPassTheme {
                 if (showWelcome) {
                     WelcomeScreen(
                         onGetStarted = {

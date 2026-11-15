@@ -1,4 +1,4 @@
-name: Build & Sign Aabir APKs (Full & Lite)
+name: Build & Sign NetPass APKs (Full & Lite)
 
 on:
   push:
@@ -45,22 +45,22 @@ jobs:
           ./gradlew assembleLiteRelease --stacktrace
 
           mkdir -p dist-apks
-          cp app/build/outputs/apk/full/release/*-release.apk dist-apks/aabir-full-signed.apk
-          cp app/build/outputs/apk/lite/release/*-release.apk dist-apks/aabir-lite-signed.apk
+          cp app/build/outputs/apk/full/release/*-release.apk dist-apks/netpass-full-signed.apk
+          cp app/build/outputs/apk/lite/release/*-release.apk dist-apks/netpass-lite-signed.apk
           ls -lh dist-apks/
 
       - name: Upload Full APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Aabir-Full-APK
-          path: dist-apks/aabir-full-signed.apk
+          name: NetPass-Full-APK
+          path: dist-apks/netpass-full-signed.apk
           retention-days: 30
 
       - name: Upload Lite APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Aabir-Lite-APK
-          path: dist-apks/aabir-lite-signed.apk
+          name: NetPass-Lite-APK
+          path: dist-apks/netpass-lite-signed.apk
           retention-days: 30
 
       - name: Create GitHub Release on Tag
@@ -68,16 +68,16 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist-apks/*.apk
-          name: Aabir ${{ github.ref_name }}
+          name: NetPass ${{ github.ref_name }}
           body: |
-            ## تطبيق عَابِر — Aabir 📶 (${{ github.ref_name }})
+            ## تطبيق نِت بَاس — NetPass 📶 (${{ github.ref_name }})
             تطبيق أندرويد أصيل 100% مبني بلغة **Kotlin** وبإطار **Jetpack Compose الحديث**، مخصص لمسح كروت شبكات الواي فاي (ميكروتك) ضوئياً وتسجيل الدخول التلقائي في بوابات الهوت سبوت (Captive Portals)، مصمم وفق أعلى معايير الإتاحة والوصول الشامل للمكفوفين ومستخدمي قارئات الشاشة (TalkBack / Jieshuo).
 
             ### 📦 الحزم المتوفرة للتحميل:
-            1. **`aabir-full-signed.apk` (النسخة الكاملة - Standalone Offline):**
+            1. **`netpass-full-signed.apk` (النسخة الكاملة - Standalone Offline):**
                - مدمج بها محرك الذكاء الاصطناعي Google ML Kit أوفلاين بالكامل دون إنترنت.
                - تعمل في أي مكان بدون اتصال وبدون الحاجة لخدمات غوغل بلاي.
-            2. **`aabir-lite-signed.apk` (النسخة الخفيفة - موفرة البيانات):**
+            2. **`netpass-lite-signed.apk` (النسخة الخفيفة - موفرة البيانات):**
                - حجم ضئيل جداً (~3MB فقط!) لتوفير رصيد البيانات.
                - تعتمد على تنزيل نموذج التعرف الضوئي ديناميكياً عبر خدمات غوغل بلاي.
 

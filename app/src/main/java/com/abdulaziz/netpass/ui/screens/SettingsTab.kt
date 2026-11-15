@@ -1,4 +1,4 @@
-package com.abdulaziz.aabir.ui.screens
+package com.abdulaziz.netpass.ui.screens
 
 import android.content.Intent
 import androidx.compose.foundation.background
@@ -22,9 +22,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.abdulaziz.aabir.feedback.FeedbackManager
-import com.abdulaziz.aabir.model.AppSettings
-import com.abdulaziz.aabir.ui.components.SensorTestbed
+import com.abdulaziz.netpass.feedback.FeedbackManager
+import com.abdulaziz.netpass.model.AppSettings
+import com.abdulaziz.netpass.ui.components.SensorTestbed
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -210,7 +210,7 @@ fun SettingsTab(
                     Button(
                         onClick = {
                             feedback.speak(
-                                "أهلاً بك في تطبيق عابر، محرك الصوت يعمل بشكل متكامل.",
+                                "أهلاً بك في تطبيق نِت بَاس، محرك الصوت يعمل بشكل متكامل.",
                                 true,
                                 settings.selectedVoiceName
                             )
@@ -423,7 +423,7 @@ fun SettingsTab(
                     .clickable { onOpenAbout() }
                     .semantics(mergeDescendants = true) {
                         role = Role.Button
-                        contentDescription = "عن تطبيق عَابِر والمطور، انقر لفتح شاشة التفاصيل وقصة نشأة التطبيق والترخيص والمستودع"
+                        contentDescription = "عن تطبيق نِت بَاس والمطور، انقر لفتح شاشة التفاصيل وقصة نشأة التطبيق والترخيص والمستودع"
                     }
             ) {
                 Row(
@@ -440,7 +440,7 @@ fun SettingsTab(
                         Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("عن تطبيق عَابِر والمطور", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text("عن تطبيق نِت بَاس والمطور", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         Text("قصة النشأة للحاجة الشخصية، معلومات المطور، الأمان، والترخيص", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
                     }
                     Icon(Icons.Default.ArrowBack, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))

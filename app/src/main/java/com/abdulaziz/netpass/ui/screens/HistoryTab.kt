@@ -1,4 +1,4 @@
-package com.abdulaziz.aabir.ui.screens
+package com.abdulaziz.netpass.ui.screens
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -21,7 +21,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.abdulaziz.aabir.model.VoucherRecord
+import com.abdulaziz.netpass.model.VoucherRecord
 import java.text.SimpleDateFormat
 import java.util.*
 

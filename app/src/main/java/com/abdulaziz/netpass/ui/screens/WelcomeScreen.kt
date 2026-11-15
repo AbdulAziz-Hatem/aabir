@@ -1,4 +1,4 @@
-package com.abdulaziz.aabir.ui.screens
+package com.abdulaziz.netpass.ui.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -143,7 +143,7 @@ fun WelcomeScreen(
                 0 -> OnboardingStepPage(
                     icon = Icons.Default.Wifi,
                     badgeText = "نسخة تجريبية (Alpha Preview)",
-                    title = "مرحباً بك في عَابِر",
+                    title = "مرحباً بك في نِت بَاس",
                     subtitle = "اعبُر إلى شبكتك بلمحة بصر",
                     description = "تطبيق Android حر ومفتوح المصدر (FOSS) مبني بالكامل بلغة Kotlin وإطار Jetpack Compose الحديث، ومخصص لتمكين المكفوفين ومستخدمي قارئات الشاشة (TalkBack / Jieshuo) من مسح كروت Wi-Fi والتسجيل التلقائي في MikroTik بنقرة واحدة."
                 )

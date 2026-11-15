@@ -11,11 +11,11 @@ def releaseKeyPassword = System.getenv('KEYSTORE_KEY_PASSWORD') ?: System.getenv
 def hasReleaseSigning = [releaseKeystorePath, releaseStorePassword, releaseKeyAlias, releaseKeyPassword].every { it }
 
 android {
-    namespace 'com.abdulaziz.aabir'
+    namespace 'com.abdulaziz.netpass'
     compileSdk 35
 
     defaultConfig {
-        applicationId 'com.abdulaziz.aabir'
+        applicationId 'com.abdulaziz.netpass'
         minSdk 24
         targetSdk 35
         versionCode 16
