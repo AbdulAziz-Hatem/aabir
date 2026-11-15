@@ -1,21 +1,20 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# قواعد Proguard لمشروع عابر لحماية المحركات بعد الضغط
+-keep class com.abdulaziz.aabir.model.** { *; }
+-keep class com.abdulaziz.aabir.network.** { *; }
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# محرك الذكاء الاصطناعي Google ML Kit
+-keep class com.google.mlkit.** { *; }
+-keep class com.google.android.gms.** { *; }
+-dontwarn com.google.mlkit.**
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# مكتبة الكاميرا CameraX
+-keep class androidx.camera.** { *; }
+-dontwarn androidx.camera.**
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# مكتبة الشبكة OkHttp
+-dontwarn okhttp3.**
+-dontwarn okio.**
+-keepattributes *Annotation*
+
+# مكتبة Coroutines
+-dontwarn kotlinx.coroutines.**
