@@ -17,7 +17,8 @@ class StorageManager(context: Context) {
             radarSound = prefs.getBoolean("radarSound", true),
             minLen = prefs.getInt("minLen", 4),
             maxLen = prefs.getInt("maxLen", 16),
-            isDarkTheme = prefs.getBoolean("isDarkTheme", true)
+            isDarkTheme = prefs.getBoolean("isDarkTheme", true),
+            isFirstLaunch = prefs.getBoolean("isFirstLaunch", true)
         )
     }
 
@@ -32,6 +33,7 @@ class StorageManager(context: Context) {
             .putInt("minLen", settings.minLen)
             .putInt("maxLen", settings.maxLen)
             .putBoolean("isDarkTheme", settings.isDarkTheme)
+            .putBoolean("isFirstLaunch", settings.isFirstLaunch)
             .apply()
     }
 

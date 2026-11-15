@@ -90,4 +90,4 @@ jobs:
             - **جاهزية أندرويد 17:** دعم محاذاة 16KB Page Alignment والإيماءات التنبؤية والحواف الآمنة Edge-to-Edge.
             - **توقيع رقمي موثق:** تم التوقيع بمفتاح RSA-4096 المعتمد للمطور عبد العزيز حاتم.
           draft: false
-          prerelease: false
+          prerelease: true

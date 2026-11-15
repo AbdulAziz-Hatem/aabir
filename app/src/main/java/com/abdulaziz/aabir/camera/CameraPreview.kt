@@ -26,6 +26,7 @@ fun CameraPreview(
     maxLen: Int,
     onPinDetected: (String) -> Unit,
     onGuidanceNeeded: (String) -> Unit,
+    onSweetSpotLocked: () -> Unit = {},
     onRadarPulse: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -36,37 +37,39 @@ fun CameraPreview(
     var previewViewRef by remember { mutableStateOf<PreviewView?>(null) }
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
     val analyzer = remember(minLen, maxLen) {
-        VoucherAnalyzer(context, minLen, maxLen, onPinDetected, onGuidanceNeeded)
+        VoucherAnalyzer(context, minLen, maxLen, onPinDetected, onGuidanceNeeded, onSweetSpotLocked)
     }
 
-    // تفعيل الالتقاط الفوري عند ضغط زر الالتقاط
     LaunchedEffect(instantCaptureTrigger) {
         if (instantCaptureTrigger > 0) {
             analyzer.triggerInstantCapture()
         }
     }
 
-    // التحكم في فلاش الكاميرا عبر العتاد
     LaunchedEffect(torchEnabled, camera) {
         try {
             camera?.cameraControl?.enableTorch(torchEnabled)
         } catch (ignored: Exception) {}
     }
 
-    // تطبيق نسبة التقريب لتكبير الكروت الصغيرة كعقلة الإصبع
+    // التحصين الحسابي للزوم: ملاءمة نسبة التقريب مع الحد الأقصى الذي يدعمه عتاد الهاتف
     LaunchedEffect(zoomRatio, camera) {
         try {
-            camera?.cameraControl?.setZoomRatio(zoomRatio)
+            camera?.let { cam ->
+                val zoomState = cam.cameraInfo.zoomState.value
+                val maxZoom = zoomState?.maxZoomRatio ?: 1.0f
+                val minZoom = zoomState?.minZoomRatio ?: 1.0f
+                val safeZoom = zoomRatio.coerceIn(minZoom, maxZoom)
+                cam.cameraControl.setZoomRatio(safeZoom)
+            }
         } catch (ignored: Exception) {}
     }
 
-    // نبضة الرادار الصوتية والتركيز التلقائي المركزي كل 2.8 ثانية
     LaunchedEffect(radarEnabled, camera) {
         while (isActive) {
             delay(2800)
             if (radarEnabled) onRadarPulse()
 
-            // إعادة توجيه بؤرة التركيز نحو المركز حيث يوجد الكرت الصغير
             try {
                 val pView = previewViewRef
                 if (pView != null && pView.width > 0 && pView.height > 0) {
@@ -118,15 +121,19 @@ fun CameraPreview(
                     val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
                     cameraProvider.unbindAll()
-                    camera = cameraProvider.bindToLifecycle(
+                    val boundCamera = cameraProvider.bindToLifecycle(
                         lifecycleOwner,
                         cameraSelector,
                         preview,
                         imageAnalysis
                     )
+                    camera = boundCamera
 
-                    // ضبط الزوم الافتراضي فور ربط الكاميرا
-                    camera?.cameraControl?.setZoomRatio(zoomRatio)
+                    // ضبط التقريب الآمن فور بدء الكاميرا
+                    val zoomState = boundCamera.cameraInfo.zoomState.value
+                    val maxZoom = zoomState?.maxZoomRatio ?: 1.0f
+                    val minZoom = zoomState?.minZoomRatio ?: 1.0f
+                    boundCamera.cameraControl.setZoomRatio(zoomRatio.coerceIn(minZoom, maxZoom))
                 } catch (ignored: Exception) {}
             }, ContextCompat.getMainExecutor(ctx))
 

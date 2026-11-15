@@ -12,23 +12,33 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.abs
 
 class VoucherAnalyzer(
     private val context: Context,
     private val minLen: Int,
     private val maxLen: Int,
     private val onPinDetected: (String) -> Unit,
-    private val onGuidanceNeeded: (String) -> Unit
+    private val onGuidanceNeeded: (String) -> Unit,
+    private val onSweetSpotLocked: () -> Unit = {}
 ) : ImageAnalysis.Analyzer {
 
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
     private val isAnalyzing = AtomicBoolean(true)
     private val isInstantCaptureRequested = AtomicBoolean(false)
     private val hasDispatchedPin = AtomicBoolean(false)
-    private var lastDetectionTime = 0L
+    
+    // حماية البطارية والمعالج: حصر التتبع في 10 إطارات بالثانية (كل 95ms)
+    private var lastAnalyzedFrameTime = 0L
     private var lastGuidanceTime = 0L
+    private var lastSpokenGuidance = ""
     private var hasPromptedEmpty = false
-    private var lastGuidanceMsg = ""
+
+    // تتبع استقرار اليد في البؤرة الذهبية
+    private var lastCenterX = 0
+    private var lastCenterY = 0
+    private var stableFrameCount = 0
+
     private val mainExecutor = ContextCompat.getMainExecutor(context)
 
     fun stop() {
@@ -43,10 +53,14 @@ class VoucherAnalyzer(
 
     @OptIn(ExperimentalGetImage::class)
     override fun analyze(imageProxy: ImageProxy) {
-        if (!isAnalyzing.get() || hasDispatchedPin.get()) {
+        val now = System.currentTimeMillis()
+
+        // فحص مهلة توفير الطاقة (10 FPS) ما لم يكن هناك طلب التقاط فوري
+        if (!isAnalyzing.get() || hasDispatchedPin.get() || (now - lastAnalyzedFrameTime < 95 && !isInstantCaptureRequested.get())) {
             imageProxy.close()
             return
         }
+        lastAnalyzedFrameTime = now
 
         val mediaImage = imageProxy.image
         if (mediaImage == null) {
@@ -63,36 +77,28 @@ class VoucherAnalyzer(
             .addOnSuccessListener { visionText ->
                 if (!isAnalyzing.get() || hasDispatchedPin.get()) return@addOnSuccessListener
 
-                val now = System.currentTimeMillis()
                 val candidate = extractBestPin(visionText)
 
+                // إذا ضغط المستخدم على زر الالتقاط الفوري اليدوي
                 if (isInstantCaptureRequested.getAndSet(false)) {
                     if (candidate != null) {
-                        if (hasDispatchedPin.compareAndSet(false, true)) {
-                            isAnalyzing.set(false)
-                            mainExecutor.execute { onPinDetected(candidate) }
-                        }
+                        dispatchFinalPin(candidate)
                     } else {
                         mainExecutor.execute {
-                            onGuidanceNeeded("لم يتم العثور على أرقام واضحة تأكد من وضع الكرت أمام الكاميرا")
+                            onGuidanceNeeded("لم يتم العثور على أرقام واضحة تأكد من موضع الكرت")
                         }
                     }
                     return@addOnSuccessListener
                 }
 
-                if (candidate != null) {
-                    if (now - lastDetectionTime > 1500) {
-                        lastDetectionTime = now
-                        if (hasDispatchedPin.compareAndSet(false, true)) {
-                            isAnalyzing.set(false)
-                            mainExecutor.execute { onPinDetected(candidate) }
-                        }
-                    }
-                } else {
-                    if (now - lastGuidanceTime > 3000) {
-                        lastGuidanceTime = now
-                        calculateSpatialGuidance(visionText, frameWidth, frameHeight)
-                    }
+                // فحص البؤرة الذهبية والتوجيه المكتبي اللحظي
+                val isSweetSpot = checkSweetSpotAndGuide(visionText, frameWidth, frameHeight, now)
+
+                // إذا استقر الكرت في البؤرة الذهبية وتوفر كود -> التقاط ذاتي فوري!
+                if (isSweetSpot && candidate != null) {
+                    dispatchFinalPin(candidate)
+                } else if (candidate != null && stableFrameCount >= 2) {
+                    dispatchFinalPin(candidate)
                 }
             }
             .addOnFailureListener { e ->
@@ -103,51 +109,86 @@ class VoucherAnalyzer(
             }
     }
 
-    // حساب التوجيه المكاني مع حماية الصمت ومنع التكرار
-    private fun calculateSpatialGuidance(
+    private fun dispatchFinalPin(pin: String) {
+        if (hasDispatchedPin.compareAndSet(false, true)) {
+            isAnalyzing.set(false)
+            mainExecutor.execute {
+                onSweetSpotLocked()
+                onPinDetected(pin)
+            }
+        }
+    }
+
+    private fun checkSweetSpotAndGuide(
         visionText: com.google.mlkit.vision.text.Text,
         frameWidth: Int,
-        frameHeight: Int
-    ) {
+        frameHeight: Int,
+        now: Long
+    ): Boolean {
         if (visionText.textBlocks.isEmpty()) {
-            // نطق العبارة مرة واحدة فقط عند فتح الكاميرا ثم الصمت التام
-            if (!hasPromptedEmpty) {
+            stableFrameCount = 0
+            if (!hasPromptedEmpty && now - lastGuidanceTime > 2500) {
                 hasPromptedEmpty = true
+                lastGuidanceTime = now
                 mainExecutor.execute { onGuidanceNeeded("ضع الكرت أمام الكاميرا") }
             }
-            return
+            return false
         }
 
-        // بمجرد ظهور أي نص، نعيد تفعيل إمكانية التنبيه لاحقاً إن اختفى
         hasPromptedEmpty = false
-
         val mainBlock = visionText.textBlocks.maxByOrNull { it.boundingBox?.height() ?: 0 }
-        val box = mainBlock?.boundingBox ?: return
+        val box = mainBlock?.boundingBox ?: return false
 
         val centerX = box.centerX()
         val centerY = box.centerY()
         val boxWidth = box.width()
         val boxHeight = box.height()
 
-        val guideMsg = when {
-            boxHeight < 20 || boxWidth < (frameWidth * 0.12) -> "اقترب بالهاتف قليلا"
-            boxWidth > (frameWidth * 0.90) -> "ابتعد بالهاتف قليلا"
-            centerX < (frameWidth * 0.20) -> "حرك الهاتف قليلا إلى اليسار"
-            centerX > (frameWidth * 0.80) -> "حرك الهاتف قليلا إلى اليمين"
-            centerY < (frameHeight * 0.20) -> "انزل الهاتف قليلا"
-            centerY > (frameHeight * 0.80) -> "ارفع الهاتف قليلا"
-            else -> null // داخل النطاق المركزي -> صمت تام ومريح
+        // فحص ثبات يد الكفيف فوق الطاولة
+        val deltaX = abs(centerX - lastCenterX)
+        val deltaY = abs(centerY - lastCenterY)
+        lastCenterX = centerX
+        lastCenterY = centerY
+
+        if (deltaX < (frameWidth * 0.05) && deltaY < (frameHeight * 0.05)) {
+            stableFrameCount++
+        } else {
+            stableFrameCount = 0
         }
 
-        // لا ننطق إلا إذا كان هناك توجيه حقيقي يختلف عن التوجيه السابق
-        if (guideMsg != null && guideMsg != lastGuidanceMsg) {
-            lastGuidanceMsg = guideMsg
-            mainExecutor.execute {
-                if (isAnalyzing.get() && !hasDispatchedPin.get()) {
-                    onGuidanceNeeded(guideMsg)
+        // شروط البؤرة الذهبية للكروت المصغرة
+        val isCenteredX = centerX in (frameWidth * 0.30).toInt()..(frameWidth * 0.70).toInt()
+        val isCenteredY = centerY in (frameHeight * 0.25).toInt()..(frameHeight * 0.75).toInt()
+        val isGoodScale = boxHeight >= 20 && boxWidth in (frameWidth * 0.15).toInt()..(frameWidth * 0.88).toInt()
+
+        if (isCenteredX && isCenteredY && isGoodScale && stableFrameCount >= 2) {
+            return true // الكرت مستقر وجاهز في البؤرة الذهبية
+        }
+
+        // التوجيه الحركي السريع المقتضب استجابة لحركة اليد كل 1.2 ثانية
+        if (now - lastGuidanceTime > 1200) {
+            val rapidCue = when {
+                boxHeight < 20 || boxWidth < (frameWidth * 0.15) -> "اقترب"
+                boxWidth > (frameWidth * 0.88) -> "ابتعد"
+                centerX < (frameWidth * 0.28) -> "يسار"
+                centerX > (frameWidth * 0.72) -> "يمين"
+                centerY < (frameHeight * 0.25) -> "تحت"
+                centerY > (frameHeight * 0.75) -> "فوق"
+                else -> null
+            }
+
+            if (rapidCue != null && rapidCue != lastSpokenGuidance) {
+                lastSpokenGuidance = rapidCue
+                lastGuidanceTime = now
+                mainExecutor.execute {
+                    if (isAnalyzing.get() && !hasDispatchedPin.get()) {
+                        onGuidanceNeeded(rapidCue)
+                    }
                 }
             }
         }
+
+        return false
     }
 
     private fun extractBestPin(visionText: com.google.mlkit.vision.text.Text): String? {
@@ -158,9 +199,7 @@ class VoucherAnalyzer(
                 val height = line.boundingBox?.height() ?: 0
                 val cleanedText = cleanOcrMistakes(line.text)
                 
-                // دمج الأرقام المتتالية المفصولة بمسافات أو شرطات
                 val joinedText = cleanedText.replace(Regex("""(?<=\d)[\s-]+(?=\d)"""), "")
-                
                 val regex = Regex("""\b\d{4,16}\b""")
                 val matches = regex.findAll(joinedText)
 

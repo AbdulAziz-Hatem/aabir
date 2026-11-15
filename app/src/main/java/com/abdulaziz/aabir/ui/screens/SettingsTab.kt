@@ -1,15 +1,15 @@
 package com.abdulaziz.aabir.ui.screens
 
 import android.content.Intent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.SettingsVoice
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.abdulaziz.aabir.feedback.FeedbackManager
 import com.abdulaziz.aabir.model.AppSettings
-import com.abdulaziz.aabir.ui.components.AboutCard
+import com.abdulaziz.aabir.ui.components.SensorTestbed
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,6 +33,8 @@ fun SettingsTab(
     onSettingsChange: (AppSettings) -> Unit,
     activeWifiGateway: String,
     feedback: FeedbackManager,
+    onOpenAbout: () -> Unit,
+    onReplayOnboarding: () -> Unit,
     onResetDefaults: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -55,7 +57,7 @@ fun SettingsTab(
             )
         }
 
-        // قسم الصوت وقارئ الشاشة ومحركات TTS (مدمج دلالياً 100%)
+        // بطاقة 1: قسم الصوت وقارئ الشاشة ومحركات TTS (مدمج دلالياً 100%)
         item {
             Card(shape = RoundedCornerShape(18.dp)) {
                 Column(
@@ -69,7 +71,7 @@ fun SettingsTab(
                         modifier = Modifier.semantics { heading() }
                     )
 
-                    // سطر الإشعارات الناطقة مدمج دلالياً بالكامل
+                    // سطر الإشعارات الناطقة
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -96,7 +98,7 @@ fun SettingsTab(
                         )
                     }
 
-                    // خيار اختيار محرك تحويل النص إلى كلام
+                    // اختيار محرك TTS المفضل
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
                             text = "اختيار محرك تحويل النص إلى كلام:",
@@ -174,7 +176,7 @@ fun SettingsTab(
                         Text("فتح إعدادات الصوت في نظام أندرويد", fontSize = 12.sp)
                     }
 
-                    // سطر صوت رادار الكاميرا مدمج دلالياً
+                    // سطر رادار الكاميرا
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -227,7 +229,7 @@ fun SettingsTab(
             }
         }
 
-        // قسم شبكة ميكروتك
+        // بطاقة 2: قسم شبكة ميكروتك (Hotspot)
         item {
             Card(shape = RoundedCornerShape(18.dp)) {
                 Column(
@@ -261,7 +263,7 @@ fun SettingsTab(
                         }
                     }
 
-                    // سطر الدخول التلقائي مدمج دلالياً
+                    // سطر الدخول التلقائي
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -300,7 +302,7 @@ fun SettingsTab(
             }
         }
 
-        // قسم معايير كرت الواي فاي (أطوال الكود)
+        // بطاقة 3: قسم معايير كرت الواي فاي (أطوال الكود والمرونة)
         item {
             Card(shape = RoundedCornerShape(18.dp)) {
                 Column(
@@ -348,13 +350,102 @@ fun SettingsTab(
             }
         }
 
-        // بطاقة حول التطبيق والمطور القابلة للطي والتوسيع
+        // بطاقة 4: منصة الفحص الحسي المباشر المنفصلة
         item {
-            AboutCard(
-                feedback = feedback,
-                selectedVoiceName = settings.selectedVoiceName,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Card(shape = RoundedCornerShape(18.dp)) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "منصة فحص العتاد والحساسات",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.semantics { heading() }
+                    )
+                    SensorTestbed(
+                        feedback = feedback,
+                        selectedVoiceName = settings.selectedVoiceName,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
+
+        // بطاقة 5: دليل الاستخدام والشاشة الترحيبية
+        item {
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .clickable { onReplayOnboarding() }
+                    .semantics(mergeDescendants = true) {
+                        role = Role.Button
+                        contentDescription = "دليل الاستخدام والشاشة الترحيبية، انقر لإعادة عرض جولة الترحيب وخطوات التوجيه المكتبي"
+                    }
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .background(MaterialTheme.colorScheme.primary, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.HelpOutline, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("دليل الاستخدام والشاشة الترحيبية", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text("إعادة عرض خطوات التوجيه المكتبي وشرح ميزات التطبيق والأذونات", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                    }
+                    Icon(Icons.Default.ArrowBack, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+
+        // بطاقة 6: بطاقة الانتقال إلى شاشة «حول التطبيق والمطور» المستقلة
+        item {
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .clickable { onOpenAbout() }
+                    .semantics(mergeDescendants = true) {
+                        role = Role.Button
+                        contentDescription = "عن تطبيق عَابِر والمطور، انقر لفتح شاشة التفاصيل وقصة نشأة التطبيق والترخيص والمستودع"
+                    }
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("عن تطبيق عَابِر والمطور", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text("قصة النشأة للحاجة الشخصية، معلومات المطور، الأمان، والترخيص", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                    }
+                    Icon(Icons.Default.ArrowBack, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                }
+            }
         }
 
         // زر استعادة الافتراضيات

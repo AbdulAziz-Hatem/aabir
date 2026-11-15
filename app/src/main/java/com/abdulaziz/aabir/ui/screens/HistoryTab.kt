@@ -1,16 +1,21 @@
 package com.abdulaziz.aabir.ui.screens
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -25,8 +30,11 @@ fun HistoryTab(
     historyList: List<VoucherRecord>,
     onClearHistory: () -> Unit,
     onReLogin: (String) -> Unit,
+    onCopySuccess: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -101,7 +109,7 @@ fun HistoryTab(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = item.pin,
                             fontSize = 18.sp,
@@ -114,16 +122,33 @@ fun HistoryTab(
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                     }
-                    IconButton(
-                        onClick = { onReLogin(item.pin) },
-                        modifier = Modifier
-                            .size(48.dp)
-                            .minimumInteractiveComponentSize()
-                            .semantics {
-                                contentDescription = "إعادة تسجيل الدخول بالكرت ${item.pin}"
-                            }
-                    ) {
-                        Icon(Icons.Default.Refresh, contentDescription = null)
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        IconButton(
+                            onClick = {
+                                val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                cb.setPrimaryClip(ClipData.newPlainText("Voucher", item.pin))
+                                onCopySuccess()
+                            },
+                            modifier = Modifier
+                                .size(48.dp)
+                                .minimumInteractiveComponentSize()
+                                .semantics { contentDescription = "نسخ الكود ${item.pin}" }
+                        ) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
+                        }
+
+                        IconButton(
+                            onClick = { onReLogin(item.pin) },
+                            modifier = Modifier
+                                .size(48.dp)
+                                .minimumInteractiveComponentSize()
+                                .semantics {
+                                    contentDescription = "إعادة تسجيل الدخول بالكرت ${item.pin}"
+                                }
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null)
+                        }
                     }
                 }
             }
