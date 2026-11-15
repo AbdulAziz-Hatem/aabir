@@ -122,10 +122,8 @@ fun MainScreen(
     }
 
     val executeLogin: (String) -> Unit = { pinToLogin ->
-        // حارس منع النقر المزدوج وسباقات الخيوط
-        if (isLoggingIn) return@executeLogin
-
-        val clean = pinToLogin.filter { it.isDigit() }
+        if (!isLoggingIn) {
+            val clean = pinToLogin.filter { it.isDigit() }
         if (clean.length < settings.minLen) {
             val alertMsg = if (clean.isEmpty()) "يرجى كتابة أو مسح رمز الكرت أولا" else "رمز الكرت غير مكتمل مطلوب ${settings.minLen} أرقام على الأقل"
             statusText = alertMsg
@@ -155,6 +153,7 @@ fun MainScreen(
                     announceFeedback(msg)
                 }
             }
+        }
         }
     }
 
