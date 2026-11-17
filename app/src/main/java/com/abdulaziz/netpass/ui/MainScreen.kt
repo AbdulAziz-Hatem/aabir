@@ -214,7 +214,7 @@ fun MainScreen(
                 bottomBar = {
                     if (!isScanning) {
                         NavigationBar {
-                            AppTab.values().forEach { tab ->
+                            AppTab.entries.forEach { tab ->
                                 NavigationBarItem(
                                     selected = currentTab == tab,
                                     onClick = { currentTab = tab },

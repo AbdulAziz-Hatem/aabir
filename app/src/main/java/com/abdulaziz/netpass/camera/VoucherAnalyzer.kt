@@ -45,6 +45,13 @@ class VoucherAnalyzer(
         isAnalyzing.set(false)
     }
 
+    fun close() {
+        stop()
+        try {
+            recognizer.close()
+        } catch (ignored: Exception) {}
+    }
+
     fun triggerInstantCapture() {
         if (!hasDispatchedPin.get()) {
             isInstantCaptureRequested.set(true)

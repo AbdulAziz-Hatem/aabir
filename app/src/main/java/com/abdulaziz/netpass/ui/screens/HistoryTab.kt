@@ -34,6 +34,7 @@ fun HistoryTab(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val dateFormatter = androidx.compose.runtime.remember { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()) }
 
     LazyColumn(
         modifier = modifier
@@ -93,7 +94,7 @@ fun HistoryTab(
             items = historyList,
             key = { "${it.pin}_${it.timestamp}" }
         ) { item ->
-            val dateStr = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(item.timestamp))
+            val dateStr = dateFormatter.format(Date(item.timestamp))
             Card(
                 modifier = Modifier
                     .fillMaxWidth()

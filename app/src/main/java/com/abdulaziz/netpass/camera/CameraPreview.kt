@@ -86,7 +86,7 @@ fun CameraPreview(
 
     DisposableEffect(Unit) {
         onDispose {
-            analyzer.stop()
+            analyzer.close()
             try {
                 camera?.cameraControl?.enableTorch(false)
                 cameraProviderInstance?.unbindAll()

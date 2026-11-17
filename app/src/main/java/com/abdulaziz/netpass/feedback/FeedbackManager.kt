@@ -39,8 +39,75 @@ class FeedbackManager(private val context: Context, private var enginePackage: S
     private val errorBuffer: ShortArray by lazy { generateErrorBuffer() }
     private val successBuffer: ShortArray by lazy { generateSuccessChordBuffer() }
 
+    // قنوات صوتية دائمة مُعاد استخدامها لمنع تسريب الـ AudioTrack Native Handles
+    private var radarTrack: AudioTrack? = null
+    private var successTrack: AudioTrack? = null
+    private var errorTrack: AudioTrack? = null
+
     init {
         initTts(enginePackage)
+        initAudioTracks()
+    }
+
+    private fun createStaticTrack(buffer: ShortArray): AudioTrack? {
+        return try {
+            val track = AudioTrack.Builder()
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setSampleRate(sampleRate)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                        .build()
+                )
+                .setBufferSizeInBytes(buffer.size * 2)
+                .setTransferMode(AudioTrack.MODE_STATIC)
+                .build()
+
+            track.write(buffer, 0, buffer.size)
+            track
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun initAudioTracks() {
+        audioScope.launch {
+            try {
+                radarTrack = createStaticTrack(radarBuffer)
+                successTrack = createStaticTrack(successBuffer)
+                errorTrack = createStaticTrack(errorBuffer)
+            } catch (ignored: Exception) {}
+        }
+    }
+
+    @Synchronized
+    private fun getOrRecreateTrack(buffer: ShortArray, currentTrack: AudioTrack?): AudioTrack? {
+        if (currentTrack != null && currentTrack.state == AudioTrack.STATE_INITIALIZED) {
+            return currentTrack
+        }
+        return createStaticTrack(buffer)
+    }
+
+    private fun playPreloadedTrack(buffer: ShortArray, trackProvider: () -> AudioTrack?, trackUpdater: (AudioTrack?) -> Unit) {
+        audioScope.launch {
+            try {
+                val track = getOrRecreateTrack(buffer, trackProvider())
+                trackUpdater(track)
+                if (track != null && track.state == AudioTrack.STATE_INITIALIZED) {
+                    if (track.playState == AudioTrack.PLAYSTATE_PLAYING) {
+                        track.stop()
+                    }
+                    track.reloadStaticData()
+                    track.play()
+                }
+            } catch (ignored: Exception) {}
+        }
     }
 
     private fun initTts(pkg: String) {
@@ -153,52 +220,16 @@ class FeedbackManager(private val context: Context, private var enginePackage: S
         return result
     }
 
-    private fun playBufferAsync(buffer: ShortArray) {
-        audioScope.launch {
-            var track: AudioTrack? = null
-            try {
-                track = AudioTrack.Builder()
-                    .setAudioAttributes(
-                        AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_MEDIA)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                            .build()
-                    )
-                    .setAudioFormat(
-                        AudioFormat.Builder()
-                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                            .setSampleRate(sampleRate)
-                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                            .build()
-                    )
-                    .setBufferSizeInBytes(buffer.size * 2)
-                    .setTransferMode(AudioTrack.MODE_STATIC)
-                    .build()
-
-                track.write(buffer, 0, buffer.size)
-                track.play()
-                val durationMs = (buffer.size * 1000L / sampleRate) + 20
-                delay(durationMs)
-            } catch (ignored: Exception) {
-            } finally {
-                try {
-                    track?.stop()
-                    track?.release()
-                } catch (ignored: Exception) {}
-            }
-        }
-    }
-
     fun playSuccessChord() {
-        playBufferAsync(successBuffer)
+        playPreloadedTrack(successBuffer, { successTrack }, { successTrack = it })
     }
 
     fun playErrorTone() {
-        playBufferAsync(errorBuffer)
+        playPreloadedTrack(errorBuffer, { errorTrack }, { errorTrack = it })
     }
 
     fun playRadarTick() {
-        playBufferAsync(radarBuffer)
+        playPreloadedTrack(radarBuffer, { radarTrack }, { radarTrack = it })
     }
 
     fun vibrateSuccess() {
@@ -232,5 +263,13 @@ class FeedbackManager(private val context: Context, private var enginePackage: S
         audioScope.cancel()
         tts?.stop()
         tts?.shutdown()
+        try {
+            radarTrack?.release()
+            radarTrack = null
+            successTrack?.release()
+            successTrack = null
+            errorTrack?.release()
+            errorTrack = null
+        } catch (ignored: Exception) {}
     }
 }
