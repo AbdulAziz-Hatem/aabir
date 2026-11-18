@@ -1,53 +1,64 @@
 package com.abdulaziz.netpass
 
+import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.*
-import com.abdulaziz.netpass.feedback.FeedbackManager
-import com.abdulaziz.netpass.model.StorageManager
-import com.abdulaziz.netpass.ui.NetPassTheme
+import androidx.activity.viewModels
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.abdulaziz.netpass.ui.AppDestination
 import com.abdulaziz.netpass.ui.MainScreen
+import com.abdulaziz.netpass.ui.MainViewModel
+import com.abdulaziz.netpass.ui.NetPassTheme
 import com.abdulaziz.netpass.ui.screens.WelcomeScreen
 
 class MainActivity : ComponentActivity() {
 
-    private lateinit var feedback: FeedbackManager
-    private lateinit var storage: StorageManager
+    private val viewModel: MainViewModel by viewModels {
+        MainViewModel.provideFactory((application as NetPassApplication).appContainer)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+
+        // Hold splash until DataStore emits the persisted theme and first-launch flag.
+        splashScreen.setKeepOnScreenCondition { !viewModel.uiState.value.isInitialized }
         enableEdgeToEdge()
 
-        storage = StorageManager(this)
-        val initialSettings = storage.loadSettings()
-        feedback = FeedbackManager(this, initialSettings.selectedTtsEngine)
-
         setContent {
-            var showWelcome by remember { mutableStateOf(storage.loadSettings().isFirstLaunch) }
+            val uiState by viewModel.uiState.collectAsState()
+            val darkTheme = uiState.settings.isDarkTheme
 
-            NetPassTheme {
-                if (showWelcome) {
+            LaunchedEffect(darkTheme) {
+                val barStyle = if (darkTheme) {
+                    SystemBarStyle.dark(Color.TRANSPARENT)
+                } else {
+                    SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+                }
+                enableEdgeToEdge(
+                    statusBarStyle = barStyle,
+                    navigationBarStyle = barStyle
+                )
+            }
+
+            NetPassTheme(darkTheme = darkTheme) {
+                if (uiState.destination == AppDestination.Welcome) {
                     WelcomeScreen(
-                        onGetStarted = {
-                            val current = storage.loadSettings()
-                            storage.saveSettings(current.copy(isFirstLaunch = false))
-                            showWelcome = false
-                        }
+                        onGetStarted = viewModel::completeOnboarding
                     )
                 } else {
                     MainScreen(
-                        feedback = feedback,
-                        onOpenOnboarding = { showWelcome = true }
+                        uiState = uiState,
+                        viewModel = viewModel
                     )
                 }
             }
         }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        feedback.release()
     }
 }

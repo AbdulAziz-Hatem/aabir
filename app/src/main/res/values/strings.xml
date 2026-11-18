@@ -1,5 +1,131 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">نِت بَاس</string>
-    <string name="app_desc">تذكرة عبورك السريع للإنترنت</string>
+    <string name="app_name">NetPass</string>
+    <string name="app_desc">Your fast ticket to the internet</string>
+    <string name="app_tagline">Cross into your network in a blink</string>
+
+    <string name="tab_scan">Scan</string>
+    <string name="tab_history">History</string>
+    <string name="tab_settings">Settings</string>
+
+    <string name="cd_switch_to_light_theme">Switch to light theme</string>
+    <string name="cd_switch_to_dark_theme">Switch to dark theme</string>
+
+    <string name="state_enabled">Enabled</string>
+    <string name="state_disabled">Disabled</string>
+
+    <string name="camera_frame_hint">Place the small voucher code inside this frame</string>
+    <string name="cd_close_camera">Close camera and go back</string>
+    <string name="cd_zoom_macro_active">Macro zoom active for small cards, tap for normal zoom</string>
+    <string name="cd_zoom_normal_active">Normal zoom active, tap for small-card macro zoom</string>
+    <string name="zoom_label_macro">2.2x Macro</string>
+    <string name="zoom_label_normal">1.0x Normal</string>
+    <string name="cd_torch_off">Turn off camera flash</string>
+    <string name="cd_torch_on">Turn on camera flash</string>
+    <string name="btn_instant_capture">Instant Capture Now</string>
+
+    <string name="dialog_camera_permission_title">Camera Permission Disabled</string>
+    <string name="dialog_camera_permission_body">Live scanning requires camera permission. You can enable it in phone settings, or continue typing the voucher PIN manually without interruption.</string>
+    <string name="btn_open_phone_settings">Open Phone Settings</string>
+    <string name="btn_manual_entry">Manual Entry</string>
+
+    <string name="cd_scan_card">Scan Wi-Fi voucher, tap to open camera with voice guidance</string>
+    <string name="scan_card_title">Scan Wi-Fi Voucher</string>
+    <string name="scan_card_subtitle">Instant offline recognition with smart voice guidance</string>
+    <string name="pin_field_label">Wi-Fi Voucher PIN</string>
+    <string name="pin_field_placeholder">Scan with camera or type PIN</string>
+    <string name="pin_field_empty_state">Field is empty</string>
+    <string name="pin_field_digits_state">%1$d digits entered</string>
+    <string name="cd_login_in_progress">Logging in to network</string>
+    <string name="cd_login_action">Log in to network</string>
+    <string name="btn_logging_in">Logging in...</string>
+    <string name="btn_login_network">Log In to Network</string>
+    <string name="btn_copy_pin">Copy PIN</string>
+
+    <string name="history_title">Used Voucher History</string>
+    <string name="btn_clear_history">Clear History</string>
+    <string name="history_empty">No vouchers in history yet</string>
+    <string name="cd_history_item">Voucher %1$s, used on %2$s</string>
+    <string name="cd_copy_pin">Copy PIN %1$s</string>
+    <string name="cd_relogin_pin">Re-login with voucher %1$s</string>
+
+    <string name="settings_title">Settings &amp; Accessibility</string>
+    <string name="settings_section_audio">Voice Alerts &amp; Speech Engine</string>
+    <string name="setting_voice_title">Voice Announcements (TTS)</string>
+    <string name="setting_voice_subtitle">Speak camera guidance, detected code, and login result</string>
+    <string name="setting_voice_cd">Voice announcements</string>
+    <string name="setting_tts_engine_label">Preferred Text-to-Speech Engine:</string>
+    <string name="tts_engine_system_default">System Default (Auto)</string>
+    <string name="btn_open_android_tts_settings">Open Android TTS Settings</string>
+    <string name="setting_radar_title">Camera Radar Sound</string>
+    <string name="setting_radar_subtitle">Gentle pulse every 2.8 seconds to confirm camera activity</string>
+    <string name="setting_radar_cd">Camera radar sound</string>
+    <string name="btn_test_voice">Test Voice</string>
+    <string name="tts_test_sample">Welcome to NetPass. The speech engine is working properly.</string>
+
+    <string name="settings_section_mikrotik">MikroTik Hotspot Settings</string>
+    <string name="label_connected_wifi_gateway">Connected Wi-Fi Gateway:</string>
+    <string name="setting_auto_login_title">Auto-Login After Scan</string>
+    <string name="setting_auto_login_subtitle">Submit the voucher PIN to the router immediately upon capture</string>
+    <string name="setting_auto_login_cd">Auto-login after scan</string>
+    <string name="label_custom_gateway">Custom Router Gateway Host</string>
+    <string name="error_invalid_gateway">Enter a valid IP or local hostname (e.g. 10.0.0.1 or login.net)</string>
+
+    <string name="settings_section_pin_length">Voucher PIN Length Rules</string>
+    <string name="label_min_length">Minimum</string>
+    <string name="label_max_length">Maximum</string>
+    <string name="error_pin_length_range">Enter values between 4 and 20 with minimum not greater than maximum</string>
+
+    <string name="settings_section_hardware">Hardware &amp; Sensory Testbed</string>
+    <string name="sensor_testbed_label">Direct Sensory Testbed:</string>
+    <string name="btn_test_success">Test Success</string>
+    <string name="btn_test_error">Test Error</string>
+
+    <string name="card_onboarding_title">User Guide &amp; Welcome Tour</string>
+    <string name="card_onboarding_subtitle">Replay desk-guidance instructions, features, and permissions</string>
+    <string name="card_onboarding_cd">User guide and welcome tour, tap to replay onboarding steps</string>
+    <string name="card_about_title">About NetPass &amp; Developer</string>
+    <string name="card_about_subtitle">Origin story, developer info, privacy pledge, and license</string>
+    <string name="card_about_cd">About NetPass and developer, tap to view details, license, and repository</string>
+    <string name="btn_reset_defaults">Reset All Default Settings</string>
+
+    <string name="cd_onboarding_step">Step %1$d of 3</string>
+    <string name="btn_skip">Skip</string>
+    <string name="btn_next">Next</string>
+    <string name="btn_get_started">Get Started</string>
+    <string name="onboarding_step1_badge">Alpha Preview</string>
+    <string name="onboarding_step1_title">Welcome to NetPass</string>
+    <string name="onboarding_step1_subtitle">Cross into your network in a blink</string>
+    <string name="onboarding_step1_desc">A free and open-source (FOSS) Android app built natively with Kotlin and Jetpack Compose, designed to empower blind users and screen-reader users (TalkBack / Jieshuo) to scan Wi-Fi vouchers and log in to MikroTik hotspots effortlessly.</string>
+    <string name="onboarding_step2_badge">Adaptive Guided Vision</string>
+    <string name="onboarding_step2_title">Smart Desk Guidance</string>
+    <string name="onboarding_step2_subtitle">Instant directional cues with zero clutter</string>
+    <string name="onboarding_step2_desc">Place the small Wi-Fi card on a flat surface and the phone guides your hand with short, clear cues (left, right, closer...) while protecting battery life. Once steady in the sweet spot, the code is captured automatically.</string>
+    <string name="onboarding_step3_title">Permissions &amp; Fallbacks</string>
+    <string name="onboarding_step3_subtitle">You are always in full control</string>
+    <string name="permission_camera_granted">Camera permission granted</string>
+    <string name="permission_camera_optional">Camera permission (optional for scanning)</string>
+    <string name="permission_camera_privacy_note">The camera is used solely for offline on-device OCR. No images are ever stored or uploaded.</string>
+    <string name="btn_grant_camera_permission">Grant Camera Permission Now</string>
+    <string name="permission_fallback_note">Even if permission is denied now or later, all features continue working via manual entry or clipboard paste.</string>
+
+    <string name="about_screen_title">About NetPass &amp; Developer</string>
+    <string name="cd_back_to_settings">Back to Settings</string>
+    <string name="btn_back_to_settings">Back to Settings</string>
+    <string name="about_brand_title">نِت بَاس | NetPass</string>
+    <string name="about_version_badge">Version %1$s</string>
+    <string name="about_tagline_quoted">“Cross into your network in a blink”</string>
+    <string name="about_story_title">Origin Story of NetPass</string>
+    <string name="about_story_body">NetPass was born out of a real personal need for a trustworthy, ad-free, open-source Wi-Fi voucher scanner tailored for blind users and screen readers.\n\nIt was built from the ground up with modern native Android technologies (Kotlin, Jetpack Compose, and CameraX) to stay free and open to everyone.</string>
+    <string name="about_privacy_title">Strict Privacy &amp; Security Pledge</string>
+    <string name="about_privacy_bullet_1">• No external servers: login traffic stays strictly between your phone and your local MikroTik router gateway.</string>
+    <string name="about_privacy_bullet_2">• Zero tracking and zero ads: no analytics SDKs, trackers, or hidden ad modules.</string>
+    <string name="about_privacy_bullet_3">• 100% on-device OCR: frames are analyzed locally in memory and never saved.</string>
+    <string name="about_editions_title">Available Editions:</string>
+    <string name="about_edition_full">• Full Edition (~21MB): bundles the offline ML Kit OCR model so it works anywhere without Google Play Services.</string>
+    <string name="about_edition_lite">• Lite Edition (~2.7MB): minimal download size that fetches the OCR model dynamically via Google Play Services.</string>
+    <string name="about_developer_line">Developer: AbdulAziz Hatem</string>
+    <string name="about_license_line">License: GNU General Public License v3.0 (GPLv3) - 100% Free &amp; Open Source.</string>
+    <string name="btn_visit_github">Visit Project Repository on GitHub</string>
+    <string name="error_no_browser">No browser app found to open this link</string>
 </resources>

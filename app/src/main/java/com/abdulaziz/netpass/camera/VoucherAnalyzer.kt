@@ -7,39 +7,55 @@ import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.core.content.ContextCompat
-import com.abdulaziz.netpass.network.MikrotikClient
+import com.abdulaziz.netpass.domain.VoucherValidator
 import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.abs
 
 class VoucherAnalyzer(
-    private val context: Context,
-    private val minLen: Int,
-    private val maxLen: Int,
+    context: Context,
+    minLen: Int,
+    maxLen: Int,
     private val onPinDetected: (String) -> Unit,
-    private val onGuidanceNeeded: (String) -> Unit,
-    private val onSweetSpotLocked: () -> Unit = {}
+    private val onGuidanceNeeded: (String) -> Unit
 ) : ImageAnalysis.Analyzer {
 
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
     private val isAnalyzing = AtomicBoolean(true)
     private val isInstantCaptureRequested = AtomicBoolean(false)
     private val hasDispatchedPin = AtomicBoolean(false)
-    
-    // إدارة الأداء وتوفير البطارية (10 إطارات/ثانية أثناء التوجيه)
+
+    @Volatile
+    private var currentMinLen: Int
+
+    @Volatile
+    private var currentMaxLen: Int
+
     private var lastAnalyzedFrameTime = 0L
     private var lastGuidanceTime = 0L
     private var lastSpokenGuidance = ""
     private var hasPromptedEmpty = false
 
-    // تتبع استقرار اليد في البؤرة الذهبية
     private var lastCenterX = 0
     private var lastCenterY = 0
     private var stableFrameCount = 0
 
-    private val mainExecutor = ContextCompat.getMainExecutor(context)
+    private val mainExecutor = ContextCompat.getMainExecutor(context.applicationContext)
+
+    init {
+        val (safeMin, safeMax) = VoucherValidator.normalizeBounds(minLen, maxLen)
+        currentMinLen = safeMin
+        currentMaxLen = safeMax
+    }
+
+    fun updateBounds(minLen: Int, maxLen: Int) {
+        val (safeMin, safeMax) = VoucherValidator.normalizeBounds(minLen, maxLen)
+        currentMinLen = safeMin
+        currentMaxLen = safeMax
+    }
 
     fun stop() {
         isAnalyzing.set(false)
@@ -49,7 +65,9 @@ class VoucherAnalyzer(
         stop()
         try {
             recognizer.close()
-        } catch (ignored: Exception) {}
+        } catch (e: Exception) {
+            Log.w(TAG, "Error closing ML Kit TextRecognizer", e)
+        }
     }
 
     fun triggerInstantCapture() {
@@ -62,8 +80,10 @@ class VoucherAnalyzer(
     override fun analyze(imageProxy: ImageProxy) {
         val now = System.currentTimeMillis()
 
-        // فحص مهلة توفير الطاقة (10 FPS) لحماية البطارية والمعالج من السخونة
-        if (!isAnalyzing.get() || hasDispatchedPin.get() || (now - lastAnalyzedFrameTime < 95 && !isInstantCaptureRequested.get())) {
+        // Throttle to ~10 FPS during guidance to save battery and thermals.
+        if (!isAnalyzing.get() || hasDispatchedPin.get() ||
+            (now - lastAnalyzedFrameTime < 95 && !isInstantCaptureRequested.get())
+        ) {
             imageProxy.close()
             return
         }
@@ -86,7 +106,6 @@ class VoucherAnalyzer(
 
                 val candidate = extractBestPin(visionText)
 
-                // إذا طلب المستخدم الالتقاط الفوري اليدوي
                 if (isInstantCaptureRequested.getAndSet(false)) {
                     if (candidate != null) {
                         dispatchFinalPin(candidate)
@@ -98,10 +117,8 @@ class VoucherAnalyzer(
                     return@addOnSuccessListener
                 }
 
-                // فحص البؤرة الذهبية والتوجيه المكتبي اللحظي
                 val isSweetSpot = checkSweetSpotAndGuide(visionText, frameWidth, frameHeight, now)
 
-                // عند تحقق شروط البؤرة الذهبية واستقرار اليد -> التقاط ذاتي فوري!
                 if (isSweetSpot && candidate != null) {
                     dispatchFinalPin(candidate)
                 } else if (candidate != null && stableFrameCount >= 2) {
@@ -109,7 +126,7 @@ class VoucherAnalyzer(
                 }
             }
             .addOnFailureListener { e ->
-                Log.e("NetPassAnalyzer", "خطأ في تحليل إطار الكاميرا", e)
+                Log.e(TAG, "خطأ في تحليل إطار الكاميرا", e)
             }
             .addOnCompleteListener {
                 imageProxy.close()
@@ -120,15 +137,13 @@ class VoucherAnalyzer(
         if (hasDispatchedPin.compareAndSet(false, true)) {
             isAnalyzing.set(false)
             mainExecutor.execute {
-                onSweetSpotLocked()
                 onPinDetected(pin)
             }
         }
     }
 
-    // خوارزمية التوجيه المكتبي المزدوجة المتطورة (Dual-Cadence Guidance Engine)
     private fun checkSweetSpotAndGuide(
-        visionText: com.google.mlkit.vision.text.Text,
+        visionText: Text,
         frameWidth: Int,
         frameHeight: Int,
         now: Long
@@ -152,7 +167,6 @@ class VoucherAnalyzer(
         val boxWidth = box.width()
         val boxHeight = box.height()
 
-        // قياس استقرار يد الكفيف فوق الطاولة
         val deltaX = abs(centerX - lastCenterX)
         val deltaY = abs(centerY - lastCenterY)
         lastCenterX = centerX
@@ -164,16 +178,14 @@ class VoucherAnalyzer(
             stableFrameCount = 0
         }
 
-        // شروط البؤرة الذهبية الدقيقة للكروت المصغرة
         val isCenteredX = centerX in (frameWidth * 0.30).toInt()..(frameWidth * 0.70).toInt()
         val isCenteredY = centerY in (frameHeight * 0.25).toInt()..(frameHeight * 0.75).toInt()
         val isGoodScale = boxHeight >= 20 && boxWidth in (frameWidth * 0.14).toInt()..(frameWidth * 0.88).toInt()
 
         if (isCenteredX && isCenteredY && isGoodScale && stableFrameCount >= 2) {
-            return true // الكرت مستقر وجاهز في البؤرة الذهبية
+            return true
         }
 
-        // تحديد المتجه الحركي الصريح الخالي من الغموض
         val currentCue = when {
             boxHeight < 20 || boxWidth < (frameWidth * 0.14) -> "اقترب بالهاتف"
             boxWidth > (frameWidth * 0.88) -> "ابتعد بالهاتف"
@@ -181,14 +193,13 @@ class VoucherAnalyzer(
             centerX > (frameWidth * 0.72) -> "حرّك لليمين"
             centerY < (frameHeight * 0.25) -> "أنزل الهاتف"
             centerY > (frameHeight * 0.75) -> "ارفع الهاتف"
-            else -> null // داخل النطاق المركزي -> صمت تام ومريح
+            else -> null
         }
 
         if (currentCue != null) {
             val isDirectionChanged = (currentCue != lastSpokenGuidance)
-            val isCadenceElapsed = (now - lastGuidanceTime >= 1600) // إعادة النطق الإيقاعي كل 1.6 ثانية
+            val isCadenceElapsed = (now - lastGuidanceTime >= 1600)
 
-            // إذا تغير الاتجاه: انطق فوراً (0ms). وإذا كان في نفس الاتجاه: أعد التوجيه كل 1.6 ثانية لطمأنة الكفيف
             if (isDirectionChanged || isCadenceElapsed) {
                 lastSpokenGuidance = currentCue
                 lastGuidanceTime = now
@@ -203,25 +214,21 @@ class VoucherAnalyzer(
         return false
     }
 
-    private fun extractBestPin(visionText: com.google.mlkit.vision.text.Text): String? {
+    private fun extractBestPin(visionText: Text): String? {
+        val min = currentMinLen
+        val max = currentMaxLen
         val candidates = mutableListOf<Pair<String, Int>>()
 
         for (block in visionText.textBlocks) {
             for (line in block.lines) {
                 val height = line.boundingBox?.height() ?: 0
-                val cleanedText = cleanOcrMistakes(line.text)
-                
-                // دمج الأرقام المتتالية المفصولة بمسافات أو شرطات
-                val joinedText = cleanedText.replace(Regex("""(?<=\d)[\s-]+(?=\d)"""), "")
-                val regex = Regex("""\b\d{4,16}\b""")
-                val matches = regex.findAll(joinedText)
-
-                for (match in matches) {
-                    val rawDigits = match.value
-                    val asciiDigits = MikrotikClient.normalizeToAsciiDigits(rawDigits)
-                    if (isValidVoucherPin(asciiDigits)) {
-                        candidates.add(Pair(asciiDigits, height))
-                    }
+                val matches = VoucherValidator.extractCandidatesFromLine(
+                    lineText = line.text,
+                    minLen = min,
+                    maxLen = max
+                )
+                for (digits in matches) {
+                    candidates.add(digits to height)
                 }
             }
         }
@@ -231,19 +238,7 @@ class VoucherAnalyzer(
         )?.first
     }
 
-    private fun cleanOcrMistakes(text: String): String {
-        return text
-            .replace(Regex("[Oo]"), "0")
-            .replace(Regex("[Il|]"), "1")
-            .replace(Regex("[Ss]"), "5")
-            .replace("B", "8")
-    }
-
-    private fun isValidVoucherPin(digits: String): Boolean {
-        if (digits.length < minLen || digits.length > maxLen) return false
-        if (digits.matches(Regex("""^(77|78|73|71|70|01|02|03|04|05|06|07)\d{6,8}$"""))) return false
-        if (digits.matches(Regex("""^(101|102|107|501|601|701|800)\d*$"""))) return false
-        if (digits.length > 15) return false
-        return true
+    companion object {
+        private const val TAG = "NetPassAnalyzer"
     }
 }

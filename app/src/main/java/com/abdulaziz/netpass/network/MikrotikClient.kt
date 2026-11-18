@@ -2,66 +2,48 @@ package com.abdulaziz.netpass.network
 
 import android.content.Context
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
+import android.util.Log
+import com.abdulaziz.netpass.domain.GatewayHostValidator
+import com.abdulaziz.netpass.domain.VoucherValidator
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import okhttp3.Dns
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-object MikrotikClient {
+class MikrotikGatewayClient(
+    context: Context,
+    private val baseClient: OkHttpClient = defaultClient,
+    private val baseNoRedirectClient: OkHttpClient = defaultNoRedirectClient
+) : HotspotAuthClient {
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(3500, TimeUnit.MILLISECONDS)
-        .readTimeout(3500, TimeUnit.MILLISECONDS)
-        .followRedirects(true)
-        .build()
+    private val appContext = context.applicationContext
 
-    private val strictNoRedirectClient = OkHttpClient.Builder()
-        .connectTimeout(2500, TimeUnit.MILLISECONDS)
-        .readTimeout(2500, TimeUnit.MILLISECONDS)
-        .followRedirects(false)
-        .followSslRedirects(false)
-        .build()
-
-    // تحويل الأرقام العربية المشرقية (١٢٣) إلى أرقام ASCII (123) وتجريد أي محارف غير رقمية
-    fun normalizeToAsciiDigits(input: String): String {
-        val sb = StringBuilder()
-        for (ch in input) {
-            when (ch) {
-                in '٠'..'٩' -> sb.append((ch - '٠' + '0'.code).toChar())
-                in '0'..'9' -> sb.append(ch)
-            }
-        }
-        return sb.toString()
+    override fun isWifiConnected(): Boolean {
+        val cm = appContext.getSystemService(ConnectivityManager::class.java) ?: return false
+        return findWifiNetwork(cm) != null
     }
 
-    fun isWifiConnected(context: Context): Boolean {
-        val cm = context.getSystemService(ConnectivityManager::class.java) ?: return false
-        val activeNetwork = cm.activeNetwork ?: return false
-        val caps = cm.getNetworkCapabilities(activeNetwork) ?: return false
-        return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
-    }
-
-    fun isVpnActive(context: Context): Boolean {
-        val cm = context.getSystemService(ConnectivityManager::class.java) ?: return false
+    override fun isVpnActive(): Boolean {
+        val cm = appContext.getSystemService(ConnectivityManager::class.java) ?: return false
         val activeNetwork = cm.activeNetwork ?: return false
         val caps = cm.getNetworkCapabilities(activeNetwork) ?: return false
         return caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
     }
 
-    /**
-     * استخراج عنوان بوابة الراوتر النشط عبر جدول توجيه المسار الافتراضي المعياري في أندرويد
-     * مع الحفاظ على مسار احتياطي متدرج لضمان التوافق مع كافة الإصدارات.
-     */
-    fun getActiveGatewayIp(context: Context): String {
+    override fun getActiveGatewayIp(): String {
         try {
-            val cm = context.getSystemService(ConnectivityManager::class.java)
-            val activeNetwork = cm?.activeNetwork
-            if (activeNetwork != null) {
-                val linkProps = cm.getLinkProperties(activeNetwork)
+            val cm = appContext.getSystemService(ConnectivityManager::class.java)
+            val wifiNetwork = findWifiNetwork(cm) ?: cm?.activeNetwork
+            if (wifiNetwork != null) {
+                val linkProps = cm?.getLinkProperties(wifiNetwork)
                 val defaultRoute = linkProps?.routes?.firstOrNull { it.isDefaultRoute && it.hasGateway() }
                     ?: linkProps?.routes?.firstOrNull { it.hasGateway() }
                 val gatewayAddress = defaultRoute?.gateway?.hostAddress
@@ -69,76 +51,80 @@ object MikrotikClient {
                     return gatewayAddress
                 }
             }
-        } catch (ignored: Exception) {}
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed reading active gateway via LinkProperties", e)
+        }
 
-        // مسار احتياطي للأجهزة القديمة
         try {
             @Suppress("DEPRECATION")
-            val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+            val wifiManager = appContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
             @Suppress("DEPRECATION")
             val dhcp = wifiManager?.dhcpInfo
             if (dhcp != null && dhcp.gateway != 0) {
                 val ip = dhcp.gateway
-                return String.format("%d.%d.%d.%d", (ip and 0xff), (ip shr 8 and 0xff), (ip shr 16 and 0xff), (ip shr 24 and 0xff))
+                return String.format(
+                    Locale.US,
+                    "%d.%d.%d.%d",
+                    ip and 0xff,
+                    ip shr 8 and 0xff,
+                    ip shr 16 and 0xff,
+                    ip shr 24 and 0xff
+                )
             }
-        } catch (ignored: Exception) {}
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed reading gateway via legacy DhcpInfo", e)
+        }
 
         return ""
     }
 
-    private fun bindWifiNetwork(context: Context, cm: ConnectivityManager?) {
-        try {
-            val active = cm?.activeNetwork
-            if (active != null) {
-                val caps = cm.getNetworkCapabilities(active)
-                if (caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
-                    cm.bindProcessToNetwork(active)
-                    return
-                }
+    override suspend fun login(pin: String, customGateway: String): LoginResult =
+        withContext(Dispatchers.IO) {
+            val cleanPin = VoucherValidator.normalizeToAsciiDigits(pin)
+            if (cleanPin.length < VoucherValidator.MIN_ALLOWED_LENGTH) {
+                return@withContext LoginResult(
+                    success = false,
+                    message = "رمز الكرت قصير جداً، يرجى إدخال ${VoucherValidator.MIN_ALLOWED_LENGTH} أرقام على الأقل"
+                )
             }
-            @Suppress("DEPRECATION")
-            cm?.allNetworks?.forEach { network ->
-                val caps = cm.getNetworkCapabilities(network)
-                if (caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
-                    cm.bindProcessToNetwork(network)
-                    return
-                }
+
+            val cm = appContext.getSystemService(ConnectivityManager::class.java)
+            val wifiNetwork = findWifiNetwork(cm)
+                ?: return@withContext LoginResult(
+                    success = false,
+                    message = "أنت غير متصل بشبكة Wi-Fi! يرجى الاتصال بشبكة MikroTik أولاً"
+                )
+
+            if (isVpnActive()) {
+                return@withContext LoginResult(
+                    success = false,
+                    message = "يرجى تعطيل الـ VPN لكي تتمكن من الوصول لصفحة الراوتر"
+                )
             }
-        } catch (ignored: Exception) {}
-    }
 
-    suspend fun login(
-        context: Context,
-        pin: String,
-        customGateway: String = ""
-    ): Pair<Boolean, String> = withContext(Dispatchers.IO) {
-        val cleanPin = normalizeToAsciiDigits(pin)
-        if (cleanPin.length < 4) {
-            return@withContext Pair(false, "رمز الكرت قصير جداً، يرجى إدخال 4 أرقام على الأقل")
-        }
+            val detectedGateway = getActiveGatewayIp()
+            val targetHost = GatewayHostValidator.resolveTargetHost(
+                customGateway = customGateway,
+                detectedGateway = detectedGateway
+            ) ?: return@withContext LoginResult(
+                success = false,
+                message = "عنوان بوابة الراوتر المخصص غير صالح، يرجى التحقق منه في الإعدادات"
+            )
 
-        if (!isWifiConnected(context)) {
-            return@withContext Pair(false, "أنت غير متصل بشبكة Wi-Fi! يرجى الاتصال بشبكة MikroTik أولاً")
-        }
-
-        if (isVpnActive(context)) {
-            return@withContext Pair(false, "يرجى تعطيل الـ VPN لكي تتمكن من الوصول لصفحة الراوتر")
-        }
-
-        val cm = context.getSystemService(ConnectivityManager::class.java)
-        bindWifiNetwork(context, cm)
-
-        try {
-            val detectedGateway = getActiveGatewayIp(context)
-            val targetHost = when {
-                customGateway.isNotBlank() -> customGateway.trim()
-                detectedGateway.isNotBlank() -> detectedGateway
-                else -> "10.0.0.1"
-            }
+            // Scope socket + DNS resolution strictly to the Wi-Fi network without mutating process-wide routing.
+            val wifiDns = Dns { hostname -> wifiNetwork.getAllByName(hostname).toList() }
+            val scopedClient = baseClient.newBuilder()
+                .socketFactory(wifiNetwork.socketFactory)
+                .dns(wifiDns)
+                .build()
+            val scopedNoRedirectClient = baseNoRedirectClient.newBuilder()
+                .socketFactory(wifiNetwork.socketFactory)
+                .dns(wifiDns)
+                .build()
 
             val payloads = listOf(
-                Pair(cleanPin, ""),         // النمط اليمني: اسم مستخدم فقط
-                Pair(cleanPin, cleanPin)    // نمط اسم المستخدم المطابق لكلمة المرور
+                Pair(cleanPin, ""),
+                Pair(cleanPin, cleanPin)
             )
 
             var lastDetectedError = ""
@@ -157,107 +143,116 @@ object MikrotikClient {
                         .post(formBuilder.build())
                         .build()
 
-                    val postResponse = client.newCall(postRequest).execute()
-                    val postResponseBody = postResponse.body?.string() ?: ""
-
-                    // فحص رد صفحة الدخول المباشر: إذا كان هناك خطأ صريح من MikroTik
-                    val foundError = extractMikrotikError(postResponseBody)
-                    if (foundError != null) {
-                        return@withContext Pair(false, foundError)
+                    val postResponseBody = scopedClient.newCall(postRequest).execute().use { res ->
+                        res.body?.string().orEmpty()
                     }
 
-                    // التحقق من صفحة الحالة
-                    kotlinx.coroutines.delay(350)
-                    val verifyResult = checkActualLoginStatus(targetHost)
-                    if (verifyResult.first) {
-                        return@withContext Pair(true, "تم تسجيل الدخول وتفعيل الإنترنت بنجاح! كود الكرت: $cleanPin")
-                    } else if (verifyResult.second.isNotEmpty()) {
-                        return@withContext Pair(false, "الكرت غير صحيح أو تم رفضه من الراوتر")
+                    val foundError = MikrotikErrorParser.extractError(postResponseBody)
+                    if (foundError != null) {
+                        return@withContext LoginResult(false, foundError)
+                    }
+
+                    delay(350)
+                    val verifyResult = checkActualLoginStatus(scopedNoRedirectClient, targetHost)
+                    if (verifyResult.success) {
+                        return@withContext LoginResult(
+                            success = true,
+                            message = "تم تسجيل الدخول وتفعيل الإنترنت بنجاح! كود الكرت: $cleanPin"
+                        )
+                    } else if (verifyResult.message.isNotEmpty()) {
+                        return@withContext LoginResult(
+                            success = false,
+                            message = "الكرت غير صحيح أو تم رفضه من الراوتر"
+                        )
                     }
                 } catch (e: Exception) {
+                    Log.w(TAG, "Login attempt failed for host=$targetHost", e)
                     if (lastDetectedError.isEmpty()) {
                         lastDetectedError = "تعذر الاتصال ببوابة الراوتر (${e.message ?: "خطأ اتصال"})"
                     }
-                    continue
                 }
             }
 
-            val finalError = if (lastDetectedError.isNotEmpty()) {
-                lastDetectedError
-            } else {
+            val finalError = lastDetectedError.ifEmpty {
                 "فشل تسجيل الدخول؛ الكرت غير صحيح أو منتهي الصلاحية"
             }
 
-            return@withContext Pair(false, finalError)
-        } finally {
-            try {
-                cm?.bindProcessToNetwork(null)
-            } catch (ignored: Exception) {}
+            LoginResult(false, finalError)
+        }
+
+    private fun findWifiNetwork(cm: ConnectivityManager?): Network? {
+        val active = cm?.activeNetwork
+        if (active != null && cm.getNetworkCapabilities(active)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
+            return active
+        }
+        @Suppress("DEPRECATION")
+        return cm?.allNetworks?.firstOrNull { network ->
+            cm.getNetworkCapabilities(network)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
         }
     }
 
-    private fun checkActualLoginStatus(host: String): Pair<Boolean, String> {
+    private fun checkActualLoginStatus(noRedirectClient: OkHttpClient, host: String): LoginResult {
         return try {
             val statusReq = Request.Builder()
                 .url("http://$host/status")
                 .get()
                 .build()
 
-            strictNoRedirectClient.newCall(statusReq).execute().use { res ->
-                // إذا رد الراوتر بتحويل 302 نحو صفحة الدخول login: فالكرت مرفوض حتماً
-                if (res.code in 301..303) {
-                    val location = res.header("Location") ?: ""
-                    if (location.contains("login", ignoreCase = true)) {
-                        return Pair(false, "الراوتر رفض الكرت وأعاد التوجيه لصفحة الدخول")
-                    }
+            noRedirectClient.newCall(statusReq).execute().use { res ->
+                if (MikrotikErrorParser.isLoginRedirect(res.code, res.header("Location"))) {
+                    return LoginResult(false, "الراوتر رفض الكرت وأعاد التوجيه لصفحة الدخول")
                 }
 
                 if (res.isSuccessful) {
-                    val body = res.body?.string() ?: ""
-                    val hasLogout = body.contains("logout", ignoreCase = true) || body.contains("action=\"\$(link-logout)\"")
-                    val isLoginPage = body.contains("name=\"username\"", ignoreCase = true) || body.contains("type=\"password\"", ignoreCase = true)
-
-                    if (hasLogout && !isLoginPage) {
-                        return Pair(true, "")
+                    val body = res.body?.string().orEmpty()
+                    if (MikrotikErrorParser.isStatusPageLoggedIn(body)) {
+                        return LoginResult(true, "")
                     }
                 }
 
-                Pair(false, "")
+                LoginResult(false, "")
             }
         } catch (e: Exception) {
-            if (verifyGoogle204Probe()) {
-                Pair(true, "")
+            Log.w(TAG, "Status check failed for host=$host; falling back to 204 probe", e)
+            if (verifyGoogle204Probe(noRedirectClient)) {
+                LoginResult(true, "")
             } else {
-                Pair(false, "لم يتم فتح تدفق الإنترنت")
+                LoginResult(false, "لم يتم فتح تدفق الإنترنت")
             }
         }
     }
 
-    private fun verifyGoogle204Probe(): Boolean {
+    private fun verifyGoogle204Probe(noRedirectClient: OkHttpClient): Boolean {
         return try {
             val req = Request.Builder()
                 .url("http://connectivitycheck.gstatic.com/generate_204")
                 .get()
                 .build()
-            strictNoRedirectClient.newCall(req).execute().use { it.code == 204 }
+            noRedirectClient.newCall(req).execute().use { it.code == 204 }
         } catch (e: Exception) {
+            Log.w(TAG, "Connectivity 204 probe failed", e)
             false
         }
     }
 
-    // استخراج أسباب الخطأ الصريحة من قالب MikroTik باللغتين العربية والإنجليزية
-    private fun extractMikrotikError(html: String): String? {
-        val lower = html.lowercase()
-        return when {
-            lower.contains("invalid username or password") || lower.contains("غير صحيحة") || lower.contains("غير صحيح") || lower.contains("invalid") -> "رمز الكرت غير صحيح"
-            (lower.contains("user") && lower.contains("not found")) || lower.contains("غير موجود") || lower.contains("غير مسجل") -> "رمز الكرت غير موجود بالنظام"
-            lower.contains("already logged in") || lower.contains("مستخدم حاليا") || lower.contains("قيد الاستخدام") -> "الكرت قيد الاستخدام في جهاز آخر حاليا"
-            lower.contains("uptime limit") || lower.contains("انتهى وقت") -> "انتهى وقت الكرت المتاح"
-            lower.contains("traffic limit") || lower.contains("انتهى رصيد") || lower.contains("نفذ رصيد") -> "انتهى رصيد بيانات الكرت بالكامل"
-            lower.contains("no more sessions") || lower.contains("استنفاذ الجلسات") -> "تم استنفاذ عدد الجلسات المسموح بها للكرت"
-            lower.contains("credit expired") || lower.contains("منتهي الصلاحية") || lower.contains("منتهي") -> "صلاحية الكرت منتهية"
-            lower.contains("class=\"error\"") || lower.contains("class='error'") || lower.contains("class=\"alert\"") -> "الراوتر رفض الكرت يرجى التأكد من الرمز"
-            else -> null
+    companion object {
+        private const val TAG = "MikrotikClient"
+
+        val defaultClient: OkHttpClient by lazy {
+            OkHttpClient.Builder()
+                .connectTimeout(3500, TimeUnit.MILLISECONDS)
+                .readTimeout(3500, TimeUnit.MILLISECONDS)
+                .followRedirects(true)
+                .build()
+        }
+
+        val defaultNoRedirectClient: OkHttpClient by lazy {
+            OkHttpClient.Builder()
+                .connectTimeout(2500, TimeUnit.MILLISECONDS)
+                .readTimeout(2500, TimeUnit.MILLISECONDS)
+                .followRedirects(false)
+                .followSslRedirects(false)
+                .build()
         }
     }
 }

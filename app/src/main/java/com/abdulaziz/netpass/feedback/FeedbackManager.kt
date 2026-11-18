@@ -12,26 +12,41 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.speech.tts.TextToSpeech
 import android.speech.tts.Voice
+import android.util.Log
 import android.widget.Toast
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import java.util.Locale
 import kotlin.math.sin
 
-data class TtsEngineItem(val packageName: String, val label: String)
+class FeedbackManager(
+    context: Context,
+    private var enginePackage: String = ""
+) : TextToSpeech.OnInitListener, FeedbackController {
 
-class FeedbackManager(private val context: Context, private var enginePackage: String = "") : TextToSpeech.OnInitListener {
-
+    private val appContext = context.applicationContext
     private var tts: TextToSpeech? = null
+    @Volatile
     private var isTtsReady = false
-    private val audioScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    @Volatile
+    private var isReleased = false
+
+    // Serialize all AudioTrack operations onto a single worker to prevent stop/reload/play races.
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val audioDispatcher = Dispatchers.Default.limitedParallelism(1)
+    private val audioScope = CoroutineScope(audioDispatcher + SupervisorJob())
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+        val vm = appContext.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
         vm?.defaultVibrator
     } else {
         @Suppress("DEPRECATION")
-        context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        appContext.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
     }
 
     private val sampleRate = 44100
@@ -39,7 +54,6 @@ class FeedbackManager(private val context: Context, private var enginePackage: S
     private val errorBuffer: ShortArray by lazy { generateErrorBuffer() }
     private val successBuffer: ShortArray by lazy { generateSuccessChordBuffer() }
 
-    // قنوات صوتية دائمة مُعاد استخدامها لمنع تسريب الـ AudioTrack Native Handles
     private var radarTrack: AudioTrack? = null
     private var successTrack: AudioTrack? = null
     private var errorTrack: AudioTrack? = null
@@ -72,30 +86,40 @@ class FeedbackManager(private val context: Context, private var enginePackage: S
             track.write(buffer, 0, buffer.size)
             track
         } catch (e: Exception) {
+            Log.w(TAG, "Failed creating static AudioTrack", e)
             null
         }
     }
 
     private fun initAudioTracks() {
         audioScope.launch {
-            try {
-                radarTrack = createStaticTrack(radarBuffer)
-                successTrack = createStaticTrack(successBuffer)
-                errorTrack = createStaticTrack(errorBuffer)
-            } catch (ignored: Exception) {}
+            if (isReleased) return@launch
+            radarTrack = createStaticTrack(radarBuffer)
+            successTrack = createStaticTrack(successBuffer)
+            errorTrack = createStaticTrack(errorBuffer)
         }
     }
 
-    @Synchronized
     private fun getOrRecreateTrack(buffer: ShortArray, currentTrack: AudioTrack?): AudioTrack? {
         if (currentTrack != null && currentTrack.state == AudioTrack.STATE_INITIALIZED) {
             return currentTrack
         }
+        try {
+            currentTrack?.release()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed releasing uninitialized AudioTrack", e)
+        }
         return createStaticTrack(buffer)
     }
 
-    private fun playPreloadedTrack(buffer: ShortArray, trackProvider: () -> AudioTrack?, trackUpdater: (AudioTrack?) -> Unit) {
+    private fun playPreloadedTrack(
+        buffer: ShortArray,
+        trackProvider: () -> AudioTrack?,
+        trackUpdater: (AudioTrack?) -> Unit
+    ) {
+        if (isReleased) return
         audioScope.launch {
+            if (isReleased) return@launch
             try {
                 val track = getOrRecreateTrack(buffer, trackProvider())
                 trackUpdater(track)
@@ -106,7 +130,9 @@ class FeedbackManager(private val context: Context, private var enginePackage: S
                     track.reloadStaticData()
                     track.play()
                 }
-            } catch (ignored: Exception) {}
+            } catch (e: Exception) {
+                Log.w(TAG, "AudioTrack playback failed", e)
+            }
         }
     }
 
@@ -114,41 +140,48 @@ class FeedbackManager(private val context: Context, private var enginePackage: S
         try {
             tts?.stop()
             tts?.shutdown()
-        } catch (ignored: Exception) {}
+        } catch (e: Exception) {
+            Log.w(TAG, "Error resetting previous TTS instance", e)
+        }
         isTtsReady = false
         enginePackage = pkg
         tts = if (pkg.isNotEmpty()) {
-            TextToSpeech(context, this, pkg)
+            TextToSpeech(appContext, this, pkg)
         } else {
-            TextToSpeech(context, this)
+            TextToSpeech(appContext, this)
         }
     }
 
-    // تغيير محرك تحويل النص إلى كلام ديناميكياً
-    fun setEngine(pkg: String) {
-        if (pkg != enginePackage) {
+    override fun setEngine(pkg: String) {
+        if (!isReleased && pkg != enginePackage) {
             initTts(pkg)
         }
     }
 
-    // قراءة كافة محركات تحويل النص إلى كلام المثبتة على الهاتف (Google, Samsung, Vocalizer, etc.)
-    fun getInstalledEngines(): List<TtsEngineItem> {
+    override fun getInstalledEngines(): List<TtsEngineItem> {
         return try {
             tts?.engines?.map { TtsEngineItem(it.name, it.label) } ?: emptyList()
         } catch (e: Exception) {
+            Log.w(TAG, "Failed querying installed TTS engines", e)
             emptyList()
         }
     }
 
     override fun onInit(status: Int) {
+        if (isReleased) return
         if (status == TextToSpeech.SUCCESS) {
-            tts?.language = Locale("ar")
+            val defaultLocale = Locale.getDefault()
+            val targetLocale = when (defaultLocale.language) {
+                "ar", "en" -> defaultLocale
+                else -> Locale.forLanguageTag("ar")
+            }
+            tts?.language = targetLocale
             isTtsReady = true
         }
     }
 
-    fun speak(text: String, enabled: Boolean, voiceName: String = "") {
-        if (!enabled || !isTtsReady) return
+    override fun speak(text: String, enabled: Boolean, voiceName: String) {
+        if (!enabled || !isTtsReady || isReleased) return
         tts?.let { engine ->
             if (voiceName.isNotEmpty()) {
                 val found = engine.voices?.find { it.name == voiceName }
@@ -158,16 +191,23 @@ class FeedbackManager(private val context: Context, private var enginePackage: S
         }
     }
 
-    // إرسال Toast نظام حقيقي لقارئ الشاشة (TalkBack / Jieshuo)
-    fun showToast(message: String) {
+    override fun showToast(message: String) {
+        if (isReleased) return
         mainHandler.post {
-            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            Toast.makeText(appContext, message, Toast.LENGTH_SHORT).show()
         }
     }
 
-    fun getAvailableVoices(): List<Voice> {
-        return tts?.voices?.filter { it.locale.language.startsWith("ar") || it.locale.language.startsWith("en") }
-            ?.toList() ?: emptyList()
+    override fun getAvailableVoices(): List<Voice> {
+        return try {
+            tts?.voices
+                ?.filter { it.locale.language.startsWith("ar") || it.locale.language.startsWith("en") }
+                ?.toList()
+                ?: emptyList()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed querying TTS voices", e)
+            emptyList()
+        }
     }
 
     private fun generateSineBuffer(freqHz: Double, durationMs: Int, volume: Float): ShortArray {
@@ -220,19 +260,19 @@ class FeedbackManager(private val context: Context, private var enginePackage: S
         return result
     }
 
-    fun playSuccessChord() {
+    override fun playSuccessChord() {
         playPreloadedTrack(successBuffer, { successTrack }, { successTrack = it })
     }
 
-    fun playErrorTone() {
+    override fun playErrorTone() {
         playPreloadedTrack(errorBuffer, { errorTrack }, { errorTrack = it })
     }
 
-    fun playRadarTick() {
+    override fun playRadarTick() {
         playPreloadedTrack(radarBuffer, { radarTrack }, { radarTrack = it })
     }
 
-    fun vibrateSuccess() {
+    override fun vibrateSuccess() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 90, 60, 160), -1))
         } else {
@@ -241,7 +281,7 @@ class FeedbackManager(private val context: Context, private var enginePackage: S
         }
     }
 
-    fun vibrateError() {
+    override fun vibrateError() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 220, 80, 220, 80, 220), -1))
         } else {
@@ -250,7 +290,7 @@ class FeedbackManager(private val context: Context, private var enginePackage: S
         }
     }
 
-    fun vibrateFound() {
+    override fun vibrateFound() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             vibrator?.vibrate(VibrationEffect.createOneShot(70, VibrationEffect.DEFAULT_AMPLITUDE))
         } else {
@@ -259,17 +299,37 @@ class FeedbackManager(private val context: Context, private var enginePackage: S
         }
     }
 
-    fun release() {
-        audioScope.cancel()
-        tts?.stop()
-        tts?.shutdown()
+    private fun releaseTrackSafely(track: AudioTrack?) {
         try {
-            radarTrack?.release()
+            track?.release()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed releasing AudioTrack", e)
+        }
+    }
+
+    override fun release() {
+        if (isReleased) return
+        isReleased = true
+        isTtsReady = false
+        try {
+            tts?.stop()
+            tts?.shutdown()
+            tts = null
+        } catch (e: Exception) {
+            Log.w(TAG, "Error shutting down TTS", e)
+        }
+        audioScope.launch {
+            releaseTrackSafely(radarTrack)
             radarTrack = null
-            successTrack?.release()
+            releaseTrackSafely(successTrack)
             successTrack = null
-            errorTrack?.release()
+            releaseTrackSafely(errorTrack)
             errorTrack = null
-        } catch (ignored: Exception) {}
+            audioScope.cancel()
+        }
+    }
+
+    companion object {
+        private const val TAG = "FeedbackManager"
     }
 }

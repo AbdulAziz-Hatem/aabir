@@ -6,27 +6,61 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.*
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.abdulaziz.netpass.R
 import kotlinx.coroutines.launch
 
 @Composable
@@ -50,6 +84,8 @@ fun WelcomeScreen(
         hasCameraPermission = isGranted
     }
 
+    val stepDesc = stringResource(R.string.cd_onboarding_step, pagerState.currentPage + 1)
+
     Scaffold(
         bottomBar = {
             Surface(
@@ -64,17 +100,17 @@ fun WelcomeScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // مؤشر الصفحات (Dots Indicator) مع إمكانية الوصول لقارئ الشاشة
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.semantics {
-                            contentDescription = "الخطوة ${pagerState.currentPage + 1} من 3"
-                        }
+                        modifier = Modifier.semantics { contentDescription = stepDesc }
                     ) {
                         repeat(3) { index ->
                             val isSelected = pagerState.currentPage == index
-                            val width by animateDpAsState(targetValue = if (isSelected) 28.dp else 10.dp, label = "dotWidth")
+                            val width by animateDpAsState(
+                                targetValue = if (isSelected) 28.dp else 10.dp,
+                                label = "dotWidth"
+                            )
                             Box(
                                 modifier = Modifier
                                     .height(10.dp)
@@ -88,7 +124,6 @@ fun WelcomeScreen(
                         }
                     }
 
-                    // أزرار التنقل السفلية
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -99,7 +134,7 @@ fun WelcomeScreen(
                                 onClick = onGetStarted,
                                 modifier = Modifier.minimumInteractiveComponentSize()
                             ) {
-                                Text("تخطي", fontSize = 14.sp)
+                                Text(stringResource(R.string.btn_skip), fontSize = 14.sp)
                             }
                         } else {
                             Spacer(Modifier.width(48.dp))
@@ -121,12 +156,16 @@ fun WelcomeScreen(
                             shape = RoundedCornerShape(16.dp)
                         ) {
                             Text(
-                                text = if (pagerState.currentPage == 2) "ابدأ الاستخدام" else "التالي",
+                                text = if (pagerState.currentPage == 2) {
+                                    stringResource(R.string.btn_get_started)
+                                } else {
+                                    stringResource(R.string.btn_next)
+                                },
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp
                             )
                             Spacer(Modifier.width(6.dp))
-                            Icon(Icons.Default.ArrowBack, contentDescription = null) // السهم لليمين في بيئة RTL
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
                         }
                     }
                 }
@@ -142,18 +181,20 @@ fun WelcomeScreen(
             when (page) {
                 0 -> OnboardingStepPage(
                     icon = Icons.Default.Wifi,
-                    badgeText = "نسخة تجريبية (Alpha Preview)",
-                    title = "مرحباً بك في نِت بَاس",
-                    subtitle = "اعبُر إلى شبكتك بلمحة بصر",
-                    description = "تطبيق Android حر ومفتوح المصدر (FOSS) مبني بالكامل بلغة Kotlin وإطار Jetpack Compose الحديث، ومخصص لتمكين المكفوفين ومستخدمي قارئات الشاشة (TalkBack / Jieshuo) من مسح كروت Wi-Fi والتسجيل التلقائي في MikroTik بنقرة واحدة."
+                    badgeText = stringResource(R.string.onboarding_step1_badge),
+                    title = stringResource(R.string.onboarding_step1_title),
+                    subtitle = stringResource(R.string.onboarding_step1_subtitle),
+                    description = stringResource(R.string.onboarding_step1_desc)
                 )
+
                 1 -> OnboardingStepPage(
                     icon = Icons.Default.Visibility,
-                    badgeText = "الرؤية الموجهة التكيفية",
-                    title = "التوجيه المكتبي الذكي",
-                    subtitle = "إرشاد حركي فوري بدون تشويش أو تأخير",
-                    description = "عند وضع كرت Wi-Fi الصغير على الطاولة، يرشدك الهاتف صوتياً بكلمات سريعة ومقتضبة تتوافق مع حركة يدك (يمين، يسار، اقترب...)، مع حماية المعالج والبطارية. وبمجرد استقرار الكرت في البؤرة الذهبية، يتم التقاط الكود ذاتياً فوراً دون لمس الشاشة."
+                    badgeText = stringResource(R.string.onboarding_step2_badge),
+                    title = stringResource(R.string.onboarding_step2_title),
+                    subtitle = stringResource(R.string.onboarding_step2_subtitle),
+                    description = stringResource(R.string.onboarding_step2_desc)
                 )
+
                 2 -> PermissionsAndFallbackPage(
                     hasPermission = hasCameraPermission,
                     onRequestPermission = { permissionLauncher.launch(Manifest.permission.CAMERA) }
@@ -275,14 +316,14 @@ fun PermissionsAndFallbackPage(
         Spacer(Modifier.height(16.dp))
 
         Text(
-            text = "إدارة الأذونات والبدائل",
+            text = stringResource(R.string.onboarding_step3_title),
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.semantics { heading() }
         )
 
         Text(
-            text = "أنت دائماً في تحكم كامل",
+            text = stringResource(R.string.onboarding_step3_subtitle),
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             textAlign = TextAlign.Center
@@ -293,8 +334,11 @@ fun PermissionsAndFallbackPage(
         Card(
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(
-                containerColor = if (hasPermission) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                containerColor = if (hasPermission) {
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                }
             ),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -312,14 +356,18 @@ fun PermissionsAndFallbackPage(
                         tint = if (hasPermission) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                     )
                     Text(
-                        text = if (hasPermission) "إذن الكاميرا مفعّل بنجاح" else "إذن الكاميرا (اختياري للمسح)",
+                        text = if (hasPermission) {
+                            stringResource(R.string.permission_camera_granted)
+                        } else {
+                            stringResource(R.string.permission_camera_optional)
+                        },
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
                     )
                 }
 
                 Text(
-                    text = "تُستخدم الكاميرا فقط لمسح رمز الكرت ضوئياً محلياً على هاتفك دون إرسال أي صورة للخارج.",
+                    text = stringResource(R.string.permission_camera_privacy_note),
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
                 )
@@ -333,7 +381,10 @@ fun PermissionsAndFallbackPage(
                             .minimumInteractiveComponentSize(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("منح إذن الكاميرا الآن", fontWeight = FontWeight.Bold)
+                        Text(
+                            text = stringResource(R.string.btn_grant_camera_permission),
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
@@ -341,7 +392,6 @@ fun PermissionsAndFallbackPage(
 
         Spacer(Modifier.height(12.dp))
 
-        // بطاقة ضمان استمرار العمل في حال رفض الإذن
         Card(
             shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(
@@ -361,7 +411,7 @@ fun PermissionsAndFallbackPage(
                     modifier = Modifier.size(24.dp)
                 )
                 Text(
-                    text = "حتى لو تم رفض الإذن الآن أو لاحقاً، فإن التطبيق يعمل بكامل وظائفه عبر كتابة أو لصق الرمز يدوياً دون أي تعطل.",
+                    text = stringResource(R.string.permission_fallback_note),
                     fontSize = 12.sp,
                     lineHeight = 18.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)

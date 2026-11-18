@@ -15,11 +15,11 @@ data class AppSettings(
     val minLen: Int = 4,
     val maxLen: Int = 16,
     val isDarkTheme: Boolean = true,
-    val isFirstLaunch: Boolean = true // تحديد ما إذا كان أول تشغيل لإظهار شاشة الترحيب
+    val isFirstLaunch: Boolean = true
 )
 
-enum class AppTab(val title: String) {
-    SCAN("المسح"),
-    HISTORY("السجل"),
-    SETTINGS("الإعدادات")
+enum class AppTab {
+    SCAN,
+    HISTORY,
+    SETTINGS
 }

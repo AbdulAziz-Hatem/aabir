@@ -1,38 +1,86 @@
 package com.abdulaziz.netpass.ui.screens
 
 import android.content.Intent
+import android.provider.Settings
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.SettingsVoice
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.*
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.abdulaziz.netpass.feedback.FeedbackManager
+import com.abdulaziz.netpass.R
+import com.abdulaziz.netpass.domain.GatewayHostValidator
+import com.abdulaziz.netpass.domain.VoucherValidator
+import com.abdulaziz.netpass.feedback.FeedbackController
 import com.abdulaziz.netpass.model.AppSettings
 import com.abdulaziz.netpass.ui.components.SensorTestbed
+import com.abdulaziz.netpass.ui.components.SettingsSwitchRow
+
+private const val TAG = "SettingsTab"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsTab(
     settings: AppSettings,
     onSettingsChange: (AppSettings) -> Unit,
+    onSelectTtsEngine: (packageName: String, label: String) -> Unit,
     activeWifiGateway: String,
-    feedback: FeedbackManager,
+    feedback: FeedbackController,
     onOpenAbout: () -> Unit,
     onReplayOnboarding: () -> Unit,
     onResetDefaults: () -> Unit,
@@ -42,6 +90,41 @@ fun SettingsTab(
     val installedEngines = remember { feedback.getInstalledEngines() }
     var engineDropdownExpanded by remember { mutableStateOf(false) }
 
+    var minLenInput by remember { mutableStateOf(settings.minLen.toString()) }
+    var maxLenInput by remember { mutableStateOf(settings.maxLen.toString()) }
+    var gatewayInput by remember { mutableStateOf(settings.gatewayIp) }
+
+    LaunchedEffect(settings.minLen, settings.maxLen) {
+        if (minLenInput.toIntOrNull() != settings.minLen) {
+            minLenInput = settings.minLen.toString()
+        }
+        if (maxLenInput.toIntOrNull() != settings.maxLen) {
+            maxLenInput = settings.maxLen.toString()
+        }
+    }
+
+    LaunchedEffect(settings.gatewayIp) {
+        if (gatewayInput != settings.gatewayIp) {
+            gatewayInput = settings.gatewayIp
+        }
+    }
+
+    val parsedMin = minLenInput.toIntOrNull()
+    val parsedMax = maxLenInput.toIntOrNull()
+    val isLengthRangeError = parsedMin == null ||
+        parsedMax == null ||
+        parsedMin !in VoucherValidator.MIN_ALLOWED_LENGTH..VoucherValidator.MAX_ALLOWED_LENGTH ||
+        parsedMax !in VoucherValidator.MIN_ALLOWED_LENGTH..VoucherValidator.MAX_ALLOWED_LENGTH ||
+        parsedMin > parsedMax
+
+    val isGatewayError = gatewayInput.isNotBlank() &&
+        GatewayHostValidator.sanitizeAndValidate(gatewayInput) == null
+
+    val defaultEngineLabel = stringResource(R.string.tts_engine_system_default)
+    val ttsSampleText = stringResource(R.string.tts_test_sample)
+    val onboardingCardDesc = stringResource(R.string.card_onboarding_cd)
+    val aboutCardDesc = stringResource(R.string.card_about_cd)
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -50,14 +133,13 @@ fun SettingsTab(
     ) {
         item {
             Text(
-                text = "الإعدادات وإمكانية الوصول",
+                text = stringResource(R.string.settings_title),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.semantics { heading() }
             )
         }
 
-        // بطاقة 1: قسم الصوت وقارئ الشاشة ومحركات TTS (مدمج دلالياً 100%)
         item {
             Card(shape = RoundedCornerShape(18.dp)) {
                 Column(
@@ -65,43 +147,23 @@ fun SettingsTab(
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Text(
-                        text = "التنبيهات الصوتية ومحرك القراءة",
+                        text = stringResource(R.string.settings_section_audio),
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.semantics { heading() }
                     )
 
-                    // سطر الإشعارات الناطقة
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable {
-                                onSettingsChange(settings.copy(voiceAnnounce = !settings.voiceAnnounce))
-                            }
-                            .minimumInteractiveComponentSize()
-                            .semantics(mergeDescendants = true) {
-                                role = Role.Switch
-                                stateDescription = if (settings.voiceAnnounce) "مفعل" else "معطل"
-                                contentDescription = "الإشعارات الناطقة"
-                            },
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("الإشعارات الناطقة (TTS)", fontWeight = FontWeight.SemiBold)
-                            Text("نطق حالة الكاميرا والكرت ونتيجة الدخول", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                        }
-                        Switch(
-                            checked = settings.voiceAnnounce,
-                            onCheckedChange = null
-                        )
-                    }
+                    SettingsSwitchRow(
+                        title = stringResource(R.string.setting_voice_title),
+                        subtitle = stringResource(R.string.setting_voice_subtitle),
+                        checked = settings.voiceAnnounce,
+                        accessibilityLabel = stringResource(R.string.setting_voice_cd),
+                        onToggle = { onSettingsChange(settings.copy(voiceAnnounce = !settings.voiceAnnounce)) }
+                    )
 
-                    // اختيار محرك TTS المفضل
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
-                            text = "اختيار محرك تحويل النص إلى كلام:",
+                            text = stringResource(R.string.setting_tts_engine_label),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
@@ -111,17 +173,21 @@ fun SettingsTab(
                             expanded = engineDropdownExpanded,
                             onExpandedChange = { engineDropdownExpanded = it }
                         ) {
-                            val currentEngineLabel = installedEngines.find { it.packageName == settings.selectedTtsEngine }?.label
-                                ?: if (settings.selectedTtsEngine.isEmpty()) "افتراضي النظام (تلقائي)" else settings.selectedTtsEngine
+                            val currentEngineLabel = installedEngines
+                                .find { it.packageName == settings.selectedTtsEngine }
+                                ?.label
+                                ?: if (settings.selectedTtsEngine.isEmpty()) defaultEngineLabel else settings.selectedTtsEngine
 
                             OutlinedTextField(
                                 value = currentEngineLabel,
                                 onValueChange = {},
                                 readOnly = true,
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = engineDropdownExpanded) },
+                                trailingIcon = {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = engineDropdownExpanded)
+                                },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .menuAnchor(),
+                                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
                                 shape = RoundedCornerShape(12.dp)
                             )
 
@@ -130,22 +196,18 @@ fun SettingsTab(
                                 onDismissRequest = { engineDropdownExpanded = false }
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text("افتراضي النظام (تلقائي)", fontWeight = FontWeight.Bold) },
+                                    text = { Text(defaultEngineLabel, fontWeight = FontWeight.Bold) },
                                     onClick = {
-                                        onSettingsChange(settings.copy(selectedTtsEngine = ""))
-                                        feedback.setEngine("")
                                         engineDropdownExpanded = false
-                                        feedback.speak("تم التبديل إلى محرك النظام الافتراضي", true)
+                                        onSelectTtsEngine("", defaultEngineLabel)
                                     }
                                 )
                                 installedEngines.forEach { engine ->
                                     DropdownMenuItem(
                                         text = { Text(engine.label) },
                                         onClick = {
-                                            onSettingsChange(settings.copy(selectedTtsEngine = engine.packageName))
-                                            feedback.setEngine(engine.packageName)
                                             engineDropdownExpanded = false
-                                            feedback.speak("تم التبديل إلى محرك ${engine.label}", true)
+                                            onSelectTtsEngine(engine.packageName, engine.label)
                                         }
                                     )
                                 }
@@ -153,16 +215,17 @@ fun SettingsTab(
                         }
                     }
 
-                    // زر فتح إعدادات TTS بالنظام
                     OutlinedButton(
                         onClick = {
                             try {
-                                val intent = Intent("com.android.settings.TTS_SETTINGS")
-                                context.startActivity(intent)
+                                context.startActivity(Intent("com.android.settings.TTS_SETTINGS"))
                             } catch (e: Exception) {
+                                Log.w(TAG, "Direct TTS settings intent unavailable; falling back to system settings", e)
                                 try {
-                                    context.startActivity(Intent(android.provider.Settings.ACTION_SETTINGS))
-                                } catch (ignored: Exception) {}
+                                    context.startActivity(Intent(Settings.ACTION_SETTINGS))
+                                } catch (fallbackError: Exception) {
+                                    Log.w(TAG, "Unable to open system settings", fallbackError)
+                                }
                             }
                         },
                         modifier = Modifier
@@ -173,47 +236,20 @@ fun SettingsTab(
                     ) {
                         Icon(Icons.Default.SettingsVoice, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("فتح إعدادات الصوت في نظام Android", fontSize = 12.sp)
+                        Text(stringResource(R.string.btn_open_android_tts_settings), fontSize = 12.sp)
                     }
 
-                    // سطر رادار الكاميرا
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable {
-                                onSettingsChange(settings.copy(radarSound = !settings.radarSound))
-                            }
-                            .minimumInteractiveComponentSize()
-                            .semantics(mergeDescendants = true) {
-                                role = Role.Switch
-                                stateDescription = if (settings.radarSound) "مفعل" else "معطل"
-                                contentDescription = "صوت رادار الكاميرا"
-                            },
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("صوت رادار الكاميرا", fontWeight = FontWeight.SemiBold)
-                            Text(
-                                "تكتكة ناعمة كل 2.8 ثانية لعدم الإزعاج",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                            )
-                        }
-                        Switch(
-                            checked = settings.radarSound,
-                            onCheckedChange = null
-                        )
-                    }
+                    SettingsSwitchRow(
+                        title = stringResource(R.string.setting_radar_title),
+                        subtitle = stringResource(R.string.setting_radar_subtitle),
+                        checked = settings.radarSound,
+                        accessibilityLabel = stringResource(R.string.setting_radar_cd),
+                        onToggle = { onSettingsChange(settings.copy(radarSound = !settings.radarSound)) }
+                    )
 
                     Button(
                         onClick = {
-                            feedback.speak(
-                                "أهلاً بك في تطبيق نِت بَاس، محرك الصوت يعمل بشكل متكامل.",
-                                true,
-                                settings.selectedVoiceName
-                            )
+                            feedback.speak(ttsSampleText, true, settings.selectedVoiceName)
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -223,13 +259,12 @@ fun SettingsTab(
                     ) {
                         Icon(Icons.Default.PlayArrow, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
-                        Text("تجربة الصوت")
+                        Text(stringResource(R.string.btn_test_voice))
                     }
                 }
             }
         }
 
-        // بطاقة 2: قسم شبكة MikroTik (Hotspot)
         item {
             Card(shape = RoundedCornerShape(18.dp)) {
                 Column(
@@ -237,7 +272,7 @@ fun SettingsTab(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "إعدادات شبكة MikroTik (Hotspot)",
+                        text = stringResource(R.string.settings_section_mikrotik),
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.semantics { heading() }
@@ -253,9 +288,9 @@ fun SettingsTab(
                                 modifier = Modifier.padding(12.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("بوابة Wi-Fi المتصلة:")
+                                Text(stringResource(R.string.label_connected_wifi_gateway))
                                 Text(
-                                    activeWifiGateway,
+                                    text = activeWifiGateway,
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = FontFamily.Monospace
                                 )
@@ -263,37 +298,29 @@ fun SettingsTab(
                         }
                     }
 
-                    // سطر الدخول التلقائي
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable {
-                                onSettingsChange(settings.copy(autoLoginOnScan = !settings.autoLoginOnScan))
-                            }
-                            .minimumInteractiveComponentSize()
-                            .semantics(mergeDescendants = true) {
-                                role = Role.Switch
-                                stateDescription = if (settings.autoLoginOnScan) "مفعل" else "معطل"
-                                contentDescription = "الدخول التلقائي فور المسح"
-                            },
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("الدخول التلقائي فور المسح", fontWeight = FontWeight.SemiBold)
-                            Text("إرسال الكود للراوتر بمجرد التقاطه", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                        }
-                        Switch(
-                            checked = settings.autoLoginOnScan,
-                            onCheckedChange = null
-                        )
-                    }
+                    SettingsSwitchRow(
+                        title = stringResource(R.string.setting_auto_login_title),
+                        subtitle = stringResource(R.string.setting_auto_login_subtitle),
+                        checked = settings.autoLoginOnScan,
+                        accessibilityLabel = stringResource(R.string.setting_auto_login_cd),
+                        onToggle = { onSettingsChange(settings.copy(autoLoginOnScan = !settings.autoLoginOnScan)) }
+                    )
 
                     OutlinedTextField(
-                        value = settings.gatewayIp,
-                        onValueChange = { onSettingsChange(settings.copy(gatewayIp = it)) },
-                        label = { Text("عنوان بوابة الراوتر المخصصة") },
+                        value = gatewayInput,
+                        onValueChange = { raw ->
+                            gatewayInput = raw
+                            if (raw.isBlank() || GatewayHostValidator.sanitizeAndValidate(raw) != null) {
+                                onSettingsChange(settings.copy(gatewayIp = raw.trim()))
+                            }
+                        },
+                        label = { Text(stringResource(R.string.label_custom_gateway)) },
+                        isError = isGatewayError,
+                        supportingText = if (isGatewayError) {
+                            { Text(stringResource(R.string.error_invalid_gateway)) }
+                        } else {
+                            null
+                        },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
@@ -302,7 +329,6 @@ fun SettingsTab(
             }
         }
 
-        // بطاقة 3: قسم معايير كرت Wi-Fi (أطوال الكود والمرونة)
         item {
             Card(shape = RoundedCornerShape(18.dp)) {
                 Column(
@@ -310,7 +336,7 @@ fun SettingsTab(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "معايير طول رمز الكرت",
+                        text = stringResource(R.string.settings_section_pin_length),
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.semantics { heading() }
@@ -321,12 +347,22 @@ fun SettingsTab(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         OutlinedTextField(
-                            value = settings.minLen.toString(),
-                            onValueChange = {
-                                val v = it.filter { ch -> ch.isDigit() }.toIntOrNull() ?: 1
-                                onSettingsChange(settings.copy(minLen = v))
+                            value = minLenInput,
+                            onValueChange = { raw ->
+                                val filtered = VoucherValidator.normalizeToAsciiDigits(raw).take(2)
+                                minLenInput = filtered
+                                val minVal = filtered.toIntOrNull()
+                                val maxVal = maxLenInput.toIntOrNull()
+                                if (minVal != null &&
+                                    maxVal != null &&
+                                    minVal in VoucherValidator.MIN_ALLOWED_LENGTH..VoucherValidator.MAX_ALLOWED_LENGTH &&
+                                    minVal <= maxVal
+                                ) {
+                                    onSettingsChange(settings.copy(minLen = minVal, maxLen = maxVal))
+                                }
                             },
-                            label = { Text("الحد الأدنى") },
+                            label = { Text(stringResource(R.string.label_min_length)) },
+                            isError = isLengthRangeError,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             singleLine = true,
                             modifier = Modifier.weight(1f),
@@ -334,23 +370,40 @@ fun SettingsTab(
                         )
 
                         OutlinedTextField(
-                            value = settings.maxLen.toString(),
-                            onValueChange = {
-                                val v = it.filter { ch -> ch.isDigit() }.toIntOrNull() ?: 20
-                                onSettingsChange(settings.copy(maxLen = v))
+                            value = maxLenInput,
+                            onValueChange = { raw ->
+                                val filtered = VoucherValidator.normalizeToAsciiDigits(raw).take(2)
+                                maxLenInput = filtered
+                                val minVal = minLenInput.toIntOrNull()
+                                val maxVal = filtered.toIntOrNull()
+                                if (minVal != null &&
+                                    maxVal != null &&
+                                    maxVal in VoucherValidator.MIN_ALLOWED_LENGTH..VoucherValidator.MAX_ALLOWED_LENGTH &&
+                                    minVal <= maxVal
+                                ) {
+                                    onSettingsChange(settings.copy(minLen = minVal, maxLen = maxVal))
+                                }
                             },
-                            label = { Text("الحد الأقصى") },
+                            label = { Text(stringResource(R.string.label_max_length)) },
+                            isError = isLengthRangeError,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             singleLine = true,
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp)
                         )
                     }
+
+                    if (isLengthRangeError) {
+                        Text(
+                            text = stringResource(R.string.error_pin_length_range),
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 12.sp
+                        )
+                    }
                 }
             }
         }
 
-        // بطاقة 4: منصة الفحص الحسي المباشر المنفصلة
         item {
             Card(shape = RoundedCornerShape(18.dp)) {
                 Column(
@@ -358,21 +411,19 @@ fun SettingsTab(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "منصة فحص العتاد والحساسات",
+                        text = stringResource(R.string.settings_section_hardware),
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.semantics { heading() }
                     )
                     SensorTestbed(
                         feedback = feedback,
-                        selectedVoiceName = settings.selectedVoiceName,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
         }
 
-        // بطاقة 5: دليل الاستخدام والشاشة الترحيبية
         item {
             Card(
                 shape = RoundedCornerShape(18.dp),
@@ -382,10 +433,10 @@ fun SettingsTab(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(18.dp))
-                    .clickable { onReplayOnboarding() }
+                    .clickable(onClick = onReplayOnboarding)
                     .semantics(mergeDescendants = true) {
                         role = Role.Button
-                        contentDescription = "دليل الاستخدام والشاشة الترحيبية، انقر لإعادة عرض جولة الترحيب وخطوات التوجيه المكتبي"
+                        contentDescription = onboardingCardDesc
                     }
             ) {
                 Row(
@@ -399,18 +450,33 @@ fun SettingsTab(
                             .background(MaterialTheme.colorScheme.primary, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.HelpOutline, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
+                        Icon(
+                            Icons.Default.HelpOutline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("دليل الاستخدام والشاشة الترحيبية", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Text("إعادة عرض خطوات التوجيه المكتبي وشرح ميزات التطبيق والأذونات", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                        Text(
+                            text = stringResource(R.string.card_onboarding_title),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                        Text(
+                            text = stringResource(R.string.card_onboarding_subtitle),
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
                     }
-                    Icon(Icons.Default.ArrowBack, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
         }
 
-        // بطاقة 6: بطاقة الانتقال إلى شاشة «حول التطبيق والمطور» المستقلة
         item {
             Card(
                 shape = RoundedCornerShape(18.dp),
@@ -420,10 +486,10 @@ fun SettingsTab(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(18.dp))
-                    .clickable { onOpenAbout() }
+                    .clickable(onClick = onOpenAbout)
                     .semantics(mergeDescendants = true) {
                         role = Role.Button
-                        contentDescription = "عن تطبيق نِت بَاس والمطور، انقر لفتح شاشة التفاصيل وقصة نشأة التطبيق والترخيص والمستودع"
+                        contentDescription = aboutCardDesc
                     }
             ) {
                 Row(
@@ -437,18 +503,33 @@ fun SettingsTab(
                             .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                        Icon(
+                            Icons.Default.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.secondary
+                        )
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("عن تطبيق نِت بَاس والمطور", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Text("قصة النشأة للحاجة الشخصية، معلومات المطور، الأمان، والترخيص", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                        Text(
+                            text = stringResource(R.string.card_about_title),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                        Text(
+                            text = stringResource(R.string.card_about_subtitle),
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
                     }
-                    Icon(Icons.Default.ArrowBack, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
                 }
             }
         }
 
-        // زر استعادة الافتراضيات
         item {
             OutlinedButton(
                 onClick = onResetDefaults,
@@ -460,7 +541,7 @@ fun SettingsTab(
             ) {
                 Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("استعادة كافة الإعدادات الافتراضية")
+                Text(stringResource(R.string.btn_reset_defaults))
             }
         }
     }

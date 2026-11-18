@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">نِت بَاس</string>
+    <string name="app_desc">تذكرة عبورك السريع للإنترنت</string>
+    <string name="app_tagline">اعبُر إلى شبكتك بلمحة بصر</string>
+
+    <string name="tab_scan">المسح</string>
+    <string name="tab_history">السجل</string>
+    <string name="tab_settings">الإعدادات</string>
+
+    <string name="cd_switch_to_light_theme">التبديل إلى الوضع الفاتح</string>
+    <string name="cd_switch_to_dark_theme">التبديل إلى الوضع الداكن</string>
+
+    <string name="state_enabled">مفعل</string>
+    <string name="state_disabled">معطل</string>
+
+    <string name="camera_frame_hint">ضع خانة الكرت الصغير داخل هذا الإطار</string>
+    <string name="cd_close_camera">إغلاق الكاميرا والعودة</string>
+    <string name="cd_zoom_macro_active">مفتاح التكبير مفعل للكروت الصغيرة انقر للتحويل إلى عادي</string>
+    <string name="cd_zoom_normal_active">مفتاح التكبير مفعل للعادي انقر للتحويل إلى الكروت الصغيرة</string>
+    <string name="zoom_label_macro">2.2x مصغر</string>
+    <string name="zoom_label_normal">1.0x عادي</string>
+    <string name="cd_torch_off">إطفاء فلاش الكاميرا</string>
+    <string name="cd_torch_on">تشغيل فلاش الكاميرا</string>
+    <string name="btn_instant_capture">التقاط فوري الآن</string>
+
+    <string name="dialog_camera_permission_title">إذن الكاميرا غير مفعل</string>
+    <string name="dialog_camera_permission_body">يتطلب المسح الضوئي المباشر إذن الكاميرا. يمكنك تفعيل الإذن من إعدادات الهاتف، أو الاستمرار بكتابة رمز الكرت يدوياً في الحقل المخصص دون أي تعطل.</string>
+    <string name="btn_open_phone_settings">فتح إعدادات الهاتف</string>
+    <string name="btn_manual_entry">الإدخال اليدوي</string>
+
+    <string name="cd_scan_card">امسح كرت Wi-Fi، انقر لفتح الكاميرا والمسح مع التوجيه الصوتي</string>
+    <string name="scan_card_title">امسح كرت Wi-Fi</string>
+    <string name="scan_card_subtitle">تعرف فوري محلي مع إرشاد حركي صوتي ذكي</string>
+    <string name="pin_field_label">رمز كرت Wi-Fi (PIN)</string>
+    <string name="pin_field_placeholder">امسح بالكاميرا أو اكتب الرمز</string>
+    <string name="pin_field_empty_state">الحقل فارغ</string>
+    <string name="pin_field_digits_state">%1$d أرقام مكتوبة</string>
+    <string name="cd_login_in_progress">جارٍ تسجيل الدخول في الشبكة</string>
+    <string name="cd_login_action">تسجيل الدخول في الشبكة</string>
+    <string name="btn_logging_in">جارٍ تسجيل الدخول...</string>
+    <string name="btn_login_network">تسجيل الدخول في الشبكة</string>
+    <string name="btn_copy_pin">نسخ الكود</string>
+
+    <string name="history_title">سجل الكروت المشحونة</string>
+    <string name="btn_clear_history">مسح السجل</string>
+    <string name="history_empty">لا توجد كروت مشحونة في السجل حتى الآن</string>
+    <string name="cd_history_item">كرت رقم %1$s، تم الشحن في %2$s</string>
+    <string name="cd_copy_pin">نسخ الكود %1$s</string>
+    <string name="cd_relogin_pin">إعادة تسجيل الدخول بالكرت %1$s</string>
+
+    <string name="settings_title">الإعدادات وإمكانية الوصول</string>
+    <string name="settings_section_audio">التنبيهات الصوتية ومحرك القراءة</string>
+    <string name="setting_voice_title">الإشعارات الناطقة (TTS)</string>
+    <string name="setting_voice_subtitle">نطق حالة الكاميرا والكرت ونتيجة الدخول</string>
+    <string name="setting_voice_cd">الإشعارات الناطقة</string>
+    <string name="setting_tts_engine_label">اختيار محرك تحويل النص إلى كلام:</string>
+    <string name="tts_engine_system_default">افتراضي النظام (تلقائي)</string>
+    <string name="btn_open_android_tts_settings">فتح إعدادات الصوت في نظام Android</string>
+    <string name="setting_radar_title">صوت رادار الكاميرا</string>
+    <string name="setting_radar_subtitle">تكتكة ناعمة كل 2.8 ثانية لعدم الإزعاج</string>
+    <string name="setting_radar_cd">صوت رادار الكاميرا</string>
+    <string name="btn_test_voice">تجربة الصوت</string>
+    <string name="tts_test_sample">أهلاً بك في تطبيق نِت بَاس، محرك الصوت يعمل بشكل متكامل.</string>
+
+    <string name="settings_section_mikrotik">إعدادات شبكة MikroTik (Hotspot)</string>
+    <string name="label_connected_wifi_gateway">بوابة Wi-Fi المتصلة:</string>
+    <string name="setting_auto_login_title">الدخول التلقائي فور المسح</string>
+    <string name="setting_auto_login_subtitle">إرسال الكود للراوتر بمجرد التقاطه</string>
+    <string name="setting_auto_login_cd">الدخول التلقائي فور المسح</string>
+    <string name="label_custom_gateway">عنوان بوابة الراوتر المخصصة</string>
+    <string name="error_invalid_gateway">أدخل عنوان IP أو نطاق محلي صالح (مثل 10.0.0.1 أو login.net)</string>
+
+    <string name="settings_section_pin_length">معايير طول رمز الكرت</string>
+    <string name="label_min_length">الحد الأدنى</string>
+    <string name="label_max_length">الحد الأقصى</string>
+    <string name="error_pin_length_range">أدخل قيماً بين 4 و 20 بحيث لا يتجاوز الحد الأدنى الحد الأقصى</string>
+
+    <string name="settings_section_hardware">منصة فحص العتاد والحساسات</string>
+    <string name="sensor_testbed_label">منصة الفحص الحسي المباشر:</string>
+    <string name="btn_test_success">فحص النجاح</string>
+    <string name="btn_test_error">فحص الفشل</string>
+
+    <string name="card_onboarding_title">دليل الاستخدام والشاشة الترحيبية</string>
+    <string name="card_onboarding_subtitle">إعادة عرض خطوات التوجيه المكتبي وشرح ميزات التطبيق والأذونات</string>
+    <string name="card_onboarding_cd">دليل الاستخدام والشاشة الترحيبية، انقر لإعادة عرض جولة الترحيب وخطوات التوجيه المكتبي</string>
+    <string name="card_about_title">عن تطبيق نِت بَاس والمطور</string>
+    <string name="card_about_subtitle">قصة النشأة للحاجة الشخصية، معلومات المطور، الأمان، والترخيص</string>
+    <string name="card_about_cd">عن تطبيق نِت بَاس والمطور، انقر لفتح شاشة التفاصيل وقصة نشأة التطبيق والترخيص والمستودع</string>
+    <string name="btn_reset_defaults">استعادة كافة الإعدادات الافتراضية</string>
+
+    <string name="cd_onboarding_step">الخطوة %1$d من 3</string>
+    <string name="btn_skip">تخطي</string>
+    <string name="btn_next">التالي</string>
+    <string name="btn_get_started">ابدأ الاستخدام</string>
+    <string name="onboarding_step1_badge">نسخة تجريبية (Alpha Preview)</string>
+    <string name="onboarding_step1_title">مرحباً بك في نِت بَاس</string>
+    <string name="onboarding_step1_subtitle">اعبُر إلى شبكتك بلمحة بصر</string>
+    <string name="onboarding_step1_desc">تطبيق Android حر ومفتوح المصدر (FOSS) مبني بالكامل بلغة Kotlin وإطار Jetpack Compose الحديث، ومخصص لتمكين المكفوفين ومستخدمي قارئات الشاشة (TalkBack / Jieshuo) من مسح كروت Wi-Fi والتسجيل التلقائي في MikroTik بنقرة واحدة.</string>
+    <string name="onboarding_step2_badge">الرؤية الموجهة التكيفية</string>
+    <string name="onboarding_step2_title">التوجيه المكتبي الذكي</string>
+    <string name="onboarding_step2_subtitle">إرشاد حركي فوري بدون تشويش أو تأخير</string>
+    <string name="onboarding_step2_desc">عند وضع كرت Wi-Fi الصغير على الطاولة، يرشدك الهاتف صوتياً بكلمات سريعة ومقتضبة تتوافق مع حركة يدك (يمين، يسار، اقترب...)، مع حماية المعالج والبطارية. وبمجرد استقرار الكرت في البؤرة الذهبية، يتم التقاط الكود ذاتياً فوراً دون لمس الشاشة.</string>
+    <string name="onboarding_step3_title">إدارة الأذونات والبدائل</string>
+    <string name="onboarding_step3_subtitle">أنت دائماً في تحكم كامل</string>
+    <string name="permission_camera_granted">إذن الكاميرا مفعّل بنجاح</string>
+    <string name="permission_camera_optional">إذن الكاميرا (اختياري للمسح)</string>
+    <string name="permission_camera_privacy_note">تُستخدم الكاميرا فقط لمسح رمز الكرت ضوئياً محلياً على هاتفك دون إرسال أي صورة للخارج.</string>
+    <string name="btn_grant_camera_permission">منح إذن الكاميرا الآن</string>
+    <string name="permission_fallback_note">حتى لو تم رفض الإذن الآن أو لاحقاً، فإن التطبيق يعمل بكامل وظائفه عبر كتابة أو لصق الرمز يدوياً دون أي تعطل.</string>
+
+    <string name="about_screen_title">عن تطبيق نِت بَاس والمطور</string>
+    <string name="cd_back_to_settings">الرجوع إلى الإعدادات</string>
+    <string name="btn_back_to_settings">الرجوع إلى شاشة الإعدادات</string>
+    <string name="about_brand_title">نِت بَاس | NetPass</string>
+    <string name="about_version_badge">الإصدار %1$s</string>
+    <string name="about_tagline_quoted">«اعبُر إلى شبكتك بلمحة بصر»</string>
+    <string name="about_story_title">قصة نشأة تطبيق نِت بَاس</string>
+    <string name="about_story_body">نشأ هذا التطبيق لحاجة شخصية حقيقية عندما بحثنا مطولاً في المتاجر والمستودعات عن تطبيق مفتوح المصدر لمسح كروت شبكات Wi-Fi ضوئياً بدقة واحترافية تلائم المكفوفين ومستخدمي قارئات الشاشة، فلم نجد ما يلبي طموحنا ومعايير الأمان الشاملة وخلو التطبيقات من الإعلانات المزعجة.\n\nلذا اتخذنا القرار ببنائه وتطويره من الصفر بأحدث تقنيات Android الأصيلة (Kotlin &amp; Jetpack Compose &amp; CameraX) ليكون برمجية حرة ومتاحة للجميع بأعلى معايير الإتقان للأبد.</string>
+    <string name="about_privacy_title">تعهد الأمان والخصوصية الصارم</string>
+    <string name="about_privacy_bullet_1">• لا خوادم خارجية: الاتصال محصور حصرياً بين هاتفك وبوابة راوتر MikroTik المحلي الخاص بالشبكة المتصل بها فقط.</string>
+    <string name="about_privacy_bullet_2">• صفر تتبع وصفر إعلانات: التطبيق لا يحتوي على أي أدوات تحليلية أو أكواد تتبع أو إعلانات مخفية نهائياً.</string>
+    <string name="about_privacy_bullet_3">• معالجة محلية 100%: الكاميرا تفحص الأرقام داخل معالج الهاتف ولا تحفظ الصور في الذاكرة إطلاقاً.</string>
+    <string name="about_editions_title">حزم التطبيق المتوفرة:</string>
+    <string name="about_edition_full">• النسخة الكاملة (Full - 21MB): مدمج بها محرك الذكاء الاصطناعي لتعمل في أي مكان بدون اتصال إنترنت وبدون Google Play Services.</string>
+    <string name="about_edition_lite">• النسخة الخفيفة (Lite - 2.7MB): حجم ضئيل جداً لتوفير باقة البيانات، وتعتمد على تنزيل النموذج ديناميكياً عبر Google Play Services.</string>
+    <string name="about_developer_line">المطور: عبد العزيز حاتم (AbdulAziz Hatem)</string>
+    <string name="about_license_line">الترخيص: رخصة جنو العمومية (GNU General Public License v3.0 - GPLv3) - حر ومفتوح المصدر 100% للأبد.</string>
+    <string name="btn_visit_github">زيارة مستودع المشروع على GitHub</string>
+    <string name="error_no_browser">لم يتم العثور على متصفح لفتح الرابط</string>
+</resources>

@@ -28,6 +28,11 @@ jobs:
         run: |
           yes | sdkmanager --licenses || true
 
+      - name: Run Unit Tests
+        run: |
+          chmod +x gradlew
+          ./gradlew testFullDebugUnitTest testLiteDebugUnitTest --stacktrace
+
       - name: Decode Release Keystore
         run: |
           mkdir -p app

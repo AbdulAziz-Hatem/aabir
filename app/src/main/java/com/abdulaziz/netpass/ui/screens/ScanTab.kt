@@ -1,11 +1,17 @@
 package com.abdulaziz.netpass.ui.screens
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -14,13 +20,32 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Wifi
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.*
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -28,7 +53,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.abdulaziz.netpass.model.AppSettings
+import com.abdulaziz.netpass.R
+import com.abdulaziz.netpass.ui.components.copyVoucherPinToClipboard
 
 @Composable
 fun ScanTab(
@@ -36,13 +62,23 @@ fun ScanTab(
     onPinChange: (String) -> Unit,
     statusText: String,
     isLoggingIn: Boolean,
-    settings: AppSettings,
     onStartScan: () -> Unit,
     onExecuteLogin: (String) -> Unit,
     onCopySuccess: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val scanCardDesc = stringResource(R.string.cd_scan_card)
+    val pinStateDesc = if (pinText.isEmpty()) {
+        stringResource(R.string.pin_field_empty_state)
+    } else {
+        stringResource(R.string.pin_field_digits_state, pinText.length)
+    }
+    val loginButtonDesc = if (isLoggingIn) {
+        stringResource(R.string.cd_login_in_progress)
+    } else {
+        stringResource(R.string.cd_login_action)
+    }
 
     LazyColumn(
         modifier = modifier
@@ -51,16 +87,15 @@ fun ScanTab(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // بطاقة فتح الكاميرا (مجموعة تنقل متماسكة)
         item {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(24.dp))
-                    .clickable { onStartScan() }
+                    .clickable(onClick = onStartScan)
                     .semantics(mergeDescendants = true) {
                         role = Role.Button
-                        contentDescription = "امسح كرت Wi-Fi، انقر لفتح الكاميرا والمسح مع التوجيه الصوتي"
+                        contentDescription = scanCardDesc
                     },
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
@@ -85,13 +120,13 @@ fun ScanTab(
                         )
                     }
                     Text(
-                        text = "امسح كرت Wi-Fi",
+                        text = stringResource(R.string.scan_card_title),
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.semantics { heading() }
                     )
                     Text(
-                        text = "تعرف فوري محلي مع إرشاد حركي صوتي ذكي",
+                        text = stringResource(R.string.scan_card_subtitle),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         textAlign = TextAlign.Center
@@ -100,7 +135,6 @@ fun ScanTab(
             }
         }
 
-        // بطاقة إدخال الرمز والإجراءات
         item {
             Card(
                 modifier = Modifier
@@ -113,7 +147,7 @@ fun ScanTab(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "رمز كرت Wi-Fi (PIN)",
+                        text = stringResource(R.string.pin_field_label),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
@@ -124,7 +158,7 @@ fun ScanTab(
                         onValueChange = onPinChange,
                         placeholder = {
                             Text(
-                                "امسح بالكاميرا أو اكتب الرمز",
+                                text = stringResource(R.string.pin_field_placeholder),
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -139,9 +173,7 @@ fun ScanTab(
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .semantics {
-                                stateDescription = if (pinText.isEmpty()) "الحقل فارغ" else "${pinText.length} أرقام مكتوبة"
-                            },
+                            .semantics { stateDescription = pinStateDesc },
                         shape = RoundedCornerShape(16.dp),
                         textStyle = LocalTextStyle.current.copy(
                             textAlign = TextAlign.Center,
@@ -161,7 +193,7 @@ fun ScanTab(
                             .minimumInteractiveComponentSize()
                             .semantics {
                                 role = Role.Button
-                                contentDescription = if (isLoggingIn) "جارٍ تسجيل الدخول في الشبكة" else "تسجيل الدخول في الشبكة"
+                                contentDescription = loginButtonDesc
                             },
                         shape = RoundedCornerShape(16.dp)
                     ) {
@@ -172,12 +204,12 @@ fun ScanTab(
                                 strokeWidth = 2.5.dp
                             )
                             Spacer(Modifier.width(8.dp))
-                            Text("جارٍ تسجيل الدخول...", fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.btn_logging_in), fontWeight = FontWeight.Bold)
                         } else {
                             Icon(Icons.Default.Wifi, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                "تسجيل الدخول في الشبكة",
+                                text = stringResource(R.string.btn_login_network),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp
                             )
@@ -186,8 +218,7 @@ fun ScanTab(
 
                     OutlinedButton(
                         onClick = {
-                            val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            cb.setPrimaryClip(ClipData.newPlainText("Voucher", pinText))
+                            copyVoucherPinToClipboard(context, pinText)
                             onCopySuccess()
                         },
                         enabled = pinText.isNotEmpty(),
@@ -199,13 +230,12 @@ fun ScanTab(
                     ) {
                         Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("نسخ الكود")
+                        Text(stringResource(R.string.btn_copy_pin))
                     }
                 }
             }
         }
 
-        // بطاقة إعلان الحالة لقارئات الشاشة
         if (statusText.isNotEmpty()) {
             item {
                 Card(
