@@ -160,7 +160,8 @@ class MikrotikGatewayClient(
                         .build()
 
                     val postResponseBody = scopedClient.newCall(postRequest).execute().use { res ->
-                        res.body?.string().orEmpty()
+                        val bytes = res.body?.bytes() ?: ByteArray(0)
+                        MikrotikErrorParser.decodeResponseBody(bytes, res.body?.contentType()?.charset())
                     }
 
                     val foundError = MikrotikErrorParser.extractError(postResponseBody)
@@ -220,7 +221,8 @@ class MikrotikGatewayClient(
                 }
 
                 if (res.isSuccessful) {
-                    val body = res.body?.string().orEmpty()
+                    val bytes = res.body?.bytes() ?: ByteArray(0)
+                    val body = MikrotikErrorParser.decodeResponseBody(bytes, res.body?.contentType()?.charset())
                     if (MikrotikErrorParser.isStatusPageLoggedIn(body)) {
                         return LoginResult(true, "")
                     }

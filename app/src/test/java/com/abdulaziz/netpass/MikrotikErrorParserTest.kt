@@ -40,4 +40,18 @@ class MikrotikErrorParserTest {
         assertTrue(MikrotikErrorParser.isStatusPageLoggedIn(statusHtml))
         assertFalse(MikrotikErrorParser.isStatusPageLoggedIn(loginHtml))
     }
+
+    @Test
+    fun decodeResponseBody_decodesUtf8AndWindows1256MetaHtml() {
+        val utf8Html = "<html><head><meta charset=\"utf-8\"></head><body>رمز الكرت غير صحيح</body></html>"
+        val utf8Bytes = utf8Html.toByteArray(Charsets.UTF_8)
+        val decodedUtf8 = MikrotikErrorParser.decodeResponseBody(utf8Bytes, null)
+        assertEquals("رمز الكرت غير صحيح", MikrotikErrorParser.extractError(decodedUtf8))
+
+        val win1256Charset = java.nio.charset.Charset.forName("windows-1256")
+        val win1256Html = "<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=windows-1256\"></head><body>رمز الكرت غير صحيح</body></html>"
+        val win1256Bytes = win1256Html.toByteArray(win1256Charset)
+        val decodedWin1256 = MikrotikErrorParser.decodeResponseBody(win1256Bytes, null)
+        assertEquals("رمز الكرت غير صحيح", MikrotikErrorParser.extractError(decodedWin1256))
+    }
 }

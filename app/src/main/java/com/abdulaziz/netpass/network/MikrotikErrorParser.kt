@@ -1,6 +1,27 @@
 package com.abdulaziz.netpass.network
 
+import java.nio.charset.Charset
+
 object MikrotikErrorParser {
+
+    private val CHARSET_META_REGEX = Regex("""(?i)<meta[^>]+charset=["']?([a-zA-Z0-9_-]+)""")
+
+    fun decodeResponseBody(bytes: ByteArray, contentTypeCharset: Charset?): String {
+        if (contentTypeCharset != null) {
+            return String(bytes, contentTypeCharset)
+        }
+
+        val preview = String(bytes, 0, minOf(bytes.size, 1024), Charsets.ISO_8859_1)
+        val detectedCharsetName = CHARSET_META_REGEX.find(preview)?.groupValues?.get(1)
+
+        val targetCharset = try {
+            if (detectedCharsetName != null) Charset.forName(detectedCharsetName) else Charsets.UTF_8
+        } catch (_: Exception) {
+            try { Charset.forName("windows-1256") } catch (_: Exception) { Charsets.UTF_8 }
+        }
+
+        return String(bytes, targetCharset)
+    }
 
     fun isLoginRedirect(statusCode: Int, locationHeader: String?): Boolean {
         return statusCode in 301..303 &&

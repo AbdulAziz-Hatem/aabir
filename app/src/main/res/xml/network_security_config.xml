@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- السماح ببروتوكول HTTP غير المشفر للاتصال ببوابات الراوترات المحلية الخاصة (Hotspot) مع الثقة بشهادات النظام -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">hotspot.local</domain>
+        <domain includeSubdomains="true">router.lan</domain>
+        <domain includeSubdomains="true">connectivitycheck.gstatic.com</domain>
+    </domain-config>
+</network-security-config>

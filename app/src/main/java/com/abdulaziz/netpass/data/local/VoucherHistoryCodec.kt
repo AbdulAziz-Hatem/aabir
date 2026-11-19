@@ -22,7 +22,7 @@ object VoucherHistoryCodec {
 
     fun decode(raw: String): List<VoucherRecord> {
         val trimmed = raw.trim()
-        if (trimmed.isEmpty()) return emptyList()
+        if (trimmed.isEmpty() || trimmed == "[]") return emptyList()
 
         return if (trimmed.startsWith("[")) {
             decodeJson(trimmed)
@@ -40,18 +40,25 @@ object VoucherHistoryCodec {
             val pin = unescapeJson(pinEncoded)
             if (pin.isEmpty()) return@mapNotNull null
             VoucherRecord(pin = pin, timestamp = timestamp)
-        }.toList()
+        }.take(MAX_HISTORY_ENTRIES).toList()
     }
 
     private fun decodeLegacy(raw: String): List<VoucherRecord> {
-        return raw.split(";").mapNotNull { entry ->
-            val sep = entry.lastIndexOf(':')
-            if (sep <= 0 || sep >= entry.lastIndex) return@mapNotNull null
-            val pin = entry.substring(0, sep)
-            val ts = entry.substring(sep + 1).toLongOrNull() ?: return@mapNotNull null
+        val delimiter = if (raw.contains(';')) ';' else '\n'
+        return raw.split(delimiter).mapNotNull { entry ->
+            val clean = entry.trim()
+            if (clean.isEmpty()) return@mapNotNull null
+            val sep = when {
+                clean.contains('|') -> clean.lastIndexOf('|')
+                clean.contains(':') -> clean.lastIndexOf(':')
+                else -> -1
+            }
+            if (sep <= 0 || sep >= clean.lastIndex) return@mapNotNull null
+            val pin = clean.substring(0, sep).trim()
+            val ts = clean.substring(sep + 1).trim().toLongOrNull() ?: return@mapNotNull null
             if (pin.isEmpty()) return@mapNotNull null
             VoucherRecord(pin = pin, timestamp = ts)
-        }
+        }.take(MAX_HISTORY_ENTRIES).toList()
     }
 
     private fun escapeJson(value: String): String {
