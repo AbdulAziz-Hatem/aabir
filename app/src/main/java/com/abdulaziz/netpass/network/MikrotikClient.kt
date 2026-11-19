@@ -15,6 +15,7 @@ import okhttp3.Dns
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.net.InetAddress
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
@@ -112,7 +113,11 @@ class MikrotikGatewayClient(
             )
 
             // Scope socket + DNS resolution strictly to the Wi-Fi network without mutating process-wide routing.
-            val wifiDns = Dns { hostname -> wifiNetwork.getAllByName(hostname).toList() }
+            val wifiDns = object : Dns {
+                override fun lookup(hostname: String): List<InetAddress> {
+                    return wifiNetwork.getAllByName(hostname).toList()
+                }
+            }
             val scopedClient = baseClient.newBuilder()
                 .socketFactory(wifiNetwork.socketFactory)
                 .dns(wifiDns)
