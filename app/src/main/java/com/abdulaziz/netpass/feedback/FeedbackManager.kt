@@ -13,6 +13,8 @@ import android.os.VibratorManager
 import android.speech.tts.TextToSpeech
 import android.speech.tts.Voice
 import android.util.Log
+import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityManager
 import android.widget.Toast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -40,6 +42,10 @@ class FeedbackManager(
     private val audioDispatcher = Dispatchers.Default.limitedParallelism(1)
     private val audioScope = CoroutineScope(audioDispatcher + SupervisorJob())
     private val mainHandler = Handler(Looper.getMainLooper())
+
+    private val accessibilityManager = appContext.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
+    val isScreenReaderActive: Boolean
+        get() = accessibilityManager?.isEnabled == true && accessibilityManager.isTouchExplorationEnabled
 
     private val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         val vm = appContext.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
@@ -124,11 +130,18 @@ class FeedbackManager(
                 val track = getOrRecreateTrack(buffer, trackProvider())
                 trackUpdater(track)
                 if (track != null && track.state == AudioTrack.STATE_INITIALIZED) {
-                    if (track.playState == AudioTrack.PLAYSTATE_PLAYING) {
-                        track.stop()
+                    try {
+                        if (track.playState == AudioTrack.PLAYSTATE_PLAYING) {
+                            track.stop()
+                        }
+                        track.reloadStaticData()
+                        track.play()
+                    } catch (e: IllegalStateException) {
+                        Log.w(TAG, "AudioTrack reload failed, recreating static track", e)
+                        val freshTrack = createStaticTrack(buffer)
+                        trackUpdater(freshTrack)
+                        freshTrack?.play()
                     }
-                    track.reloadStaticData()
-                    track.play()
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "AudioTrack playback failed", e)
@@ -181,7 +194,23 @@ class FeedbackManager(
     }
 
     override fun speak(text: String, enabled: Boolean, voiceName: String) {
-        if (!enabled || !isTtsReady || isReleased) return
+        if (!enabled || isReleased) return
+
+        if (isScreenReaderActive) {
+            try {
+                val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_ANNOUNCEMENT).apply {
+                    className = javaClass.name
+                    packageName = appContext.packageName
+                    this.text.add(text)
+                }
+                accessibilityManager?.sendAccessibilityEvent(event)
+                return
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed dispatching accessibility announcement", e)
+            }
+        }
+
+        if (!isTtsReady) return
         tts?.let { engine ->
             if (voiceName.isNotEmpty()) {
                 val found = engine.voices?.find { it.name == voiceName }

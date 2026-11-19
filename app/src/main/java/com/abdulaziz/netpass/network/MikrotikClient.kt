@@ -16,6 +16,7 @@ import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.InetAddress
+import java.net.UnknownHostException
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
@@ -115,7 +116,17 @@ class MikrotikGatewayClient(
             // Scope socket + DNS resolution strictly to the Wi-Fi network without mutating process-wide routing.
             val wifiDns = object : Dns {
                 override fun lookup(hostname: String): List<InetAddress> {
-                    return wifiNetwork.getAllByName(hostname).toList()
+                    return try {
+                        wifiNetwork.getAllByName(hostname).toList()
+                    } catch (e: Exception) {
+                        try {
+                            InetAddress.getAllByName(hostname).toList()
+                        } catch (ex: Exception) {
+                            throw UnknownHostException("تعذر العثور على عنوان البوابة: $hostname").apply {
+                                initCause(e)
+                            }
+                        }
+                    }
                 }
             }
             val scopedClient = baseClient.newBuilder()

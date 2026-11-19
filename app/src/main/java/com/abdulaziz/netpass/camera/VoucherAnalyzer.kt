@@ -187,12 +187,12 @@ class VoucherAnalyzer(
         }
 
         val currentCue = when {
-            boxHeight < 20 || boxWidth < (frameWidth * 0.14) -> "اقترب بالهاتف"
-            boxWidth > (frameWidth * 0.88) -> "ابتعد بالهاتف"
-            centerX < (frameWidth * 0.28) -> "حرّك لليسار"
-            centerX > (frameWidth * 0.72) -> "حرّك لليمين"
-            centerY < (frameHeight * 0.25) -> "أنزل الهاتف"
-            centerY > (frameHeight * 0.75) -> "ارفع الهاتف"
+            boxHeight < 20 || boxWidth < (frameWidth * 0.14) -> "قرّب الهاتف من الكرت"
+            boxWidth > (frameWidth * 0.88) -> "أبعد الهاتف قليلاً عن الكرت"
+            centerX < (frameWidth * 0.28) -> "حرّك الهاتف قليلاً لليمين"
+            centerX > (frameWidth * 0.72) -> "حرّك الهاتف قليلاً لليسار"
+            centerY < (frameHeight * 0.25) -> "حرّك الهاتف للأمام"
+            centerY > (frameHeight * 0.75) -> "حرّك الهاتف للخلف"
             else -> null
         }
 
