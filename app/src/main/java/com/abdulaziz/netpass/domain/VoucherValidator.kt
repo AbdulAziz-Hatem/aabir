@@ -87,9 +87,13 @@ object VoucherValidator {
         isCenteredX: Boolean,
         isCenteredY: Boolean
     ): Int {
+        if (candidate.length == 4 && CALENDAR_YEAR_REGEX.matches(candidate)) {
+            return -999
+        }
+
         var score = 100
 
-        if (candidate.length == 4 && CALENDAR_YEAR_REGEX.matches(candidate)) {
+        if (PHONE_NUMBER_REGEX.matches(candidate)) {
             score -= 150
         }
 
