@@ -61,4 +61,36 @@ class VoucherValidationTest {
         )
         assertEquals(listOf("45678901"), candidates)
     }
+
+    @Test
+    fun evaluateCandidateScore_prioritizesVoucherContextOverNoise() {
+        val pinScore = VoucherValidator.evaluateCandidateScore(
+            candidate = "4567",
+            lineText = "رمز الكرت 4567",
+            blockText = "شبكة المجد - كود الدخول",
+            lineHeight = 35,
+            isCenteredX = true,
+            isCenteredY = true
+        )
+        val phoneScore = VoucherValidator.evaluateCandidateScore(
+            candidate = "771234567",
+            lineText = "للتواصل هاتف: 771234567",
+            blockText = "خدمة العملاء والمبيعات",
+            lineHeight = 20,
+            isCenteredX = false,
+            isCenteredY = false
+        )
+        val yearScore = VoucherValidator.evaluateCandidateScore(
+            candidate = "2026",
+            lineText = "صلاحية الكرت 2026",
+            blockText = "تاريخ الانتهاء",
+            lineHeight = 20,
+            isCenteredX = true,
+            isCenteredY = false
+        )
+
+        assertTrue("Voucher PIN score must exceed phone number score", pinScore > phoneScore)
+        assertTrue("Voucher PIN score must exceed calendar year score", pinScore > yearScore)
+        assertTrue("Calendar year score should be penalized heavily", yearScore < 0)
+    }
 }

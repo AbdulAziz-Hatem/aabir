@@ -8,6 +8,24 @@ object VoucherValidator {
     private val DIGIT_SEPARATOR_REGEX = Regex("""(?<=\d)[\s-]+(?=\d)""")
     private val PHONE_NUMBER_REGEX = Regex("""^(77|78|73|71|70|01|02|03|04|05|06|07)\d{6,8}$""")
     private val SERVICE_CODE_REGEX = Regex("""^(101|102|107|501|601|701|800)\d*$""")
+    private val CALENDAR_YEAR_REGEX = Regex("""^(202[4-9]|203[0-5])$""")
+
+    private val POSITIVE_CONTEXT_KEYWORDS = listOf(
+        "رمز", "الرمز", "كود", "الكود", "كرت", "الكرت", "سري", "السري",
+        "دخول", "الدخول", "مستخدم", "المستخدم", "pin", "code", "pass",
+        "password", "user", "voucher", "card"
+    )
+
+    private val NEGATIVE_CONTEXT_KEYWORDS = listOf(
+        "هاتف", "تلفون", "موبايل", "جوال", "اتصال", "تواصل", "خدمة", "عملاء",
+        "دعم", "شكاوى", "مبيعات", "استفسار", "تسلسلي", "تسلسل", "رقم",
+        "tel", "phone", "mobile", "sn", "s/n", "serial", "no", "call",
+        "ريال", "yer", "yr", "ميجا", "جيجا", "mb", "gb", "ساعة", "يوم"
+    )
+
+    private val ROUND_DENOMINATIONS = setOf(
+        "100", "200", "250", "300", "500", "1000", "1500", "2000", "2500", "3000", "5000", "10000"
+    )
 
     fun normalizeBounds(minLen: Int, maxLen: Int): Pair<Int, Int> {
         val safeMin = minLen.coerceIn(MIN_ALLOWED_LENGTH, MAX_ALLOWED_LENGTH)
@@ -57,7 +75,54 @@ object VoucherValidator {
         if (!digits.all { it in '0'..'9' }) return false
         if (PHONE_NUMBER_REGEX.matches(digits)) return false
         if (SERVICE_CODE_REGEX.matches(digits)) return false
+        if (CALENDAR_YEAR_REGEX.matches(digits)) return false
         return true
+    }
+
+    fun evaluateCandidateScore(
+        candidate: String,
+        lineText: String,
+        blockText: String,
+        lineHeight: Int,
+        isCenteredX: Boolean,
+        isCenteredY: Boolean
+    ): Int {
+        var score = 100
+
+        if (candidate.length == 4 && CALENDAR_YEAR_REGEX.matches(candidate)) {
+            score -= 150
+        }
+
+        if (ROUND_DENOMINATIONS.contains(candidate)) {
+            score -= 120
+        }
+
+        val combinedContext = "$lineText $blockText".lowercase()
+
+        for (neg in NEGATIVE_CONTEXT_KEYWORDS) {
+            if (combinedContext.contains(neg)) {
+                score -= 80
+                break
+            }
+        }
+
+        for (pos in POSITIVE_CONTEXT_KEYWORDS) {
+            if (combinedContext.contains(pos)) {
+                score += 90
+                break
+            }
+        }
+
+        if (isCenteredX) score += 30
+        if (isCenteredY) score += 30
+
+        score += lineHeight.coerceAtMost(50)
+
+        if (candidate.length in 6..12) {
+            score += 20
+        }
+
+        return score
     }
 
     fun extractCandidatesFromLine(

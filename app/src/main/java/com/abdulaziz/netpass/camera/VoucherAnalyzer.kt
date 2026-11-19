@@ -43,6 +43,10 @@ class VoucherAnalyzer(
     private var lastCenterY = 0
     private var stableFrameCount = 0
 
+    // ذاكرة التصويت التراكمي عبر الإطارات لترشيح الكود المؤكد
+    private var lastTopCandidate: String? = null
+    private var candidateConfidenceStreak = 0
+
     private val mainExecutor = ContextCompat.getMainExecutor(context.applicationContext)
 
     init {
@@ -80,7 +84,6 @@ class VoucherAnalyzer(
     override fun analyze(imageProxy: ImageProxy) {
         val now = System.currentTimeMillis()
 
-        // Throttle to ~10 FPS during guidance to save battery and thermals.
         if (!isAnalyzing.get() || hasDispatchedPin.get() ||
             (now - lastAnalyzedFrameTime < 95 && !isInstantCaptureRequested.get())
         ) {
@@ -104,7 +107,7 @@ class VoucherAnalyzer(
             .addOnSuccessListener { visionText ->
                 if (!isAnalyzing.get() || hasDispatchedPin.get()) return@addOnSuccessListener
 
-                val candidate = extractBestPin(visionText)
+                val candidate = extractBestVoucherPin(visionText, frameWidth, frameHeight)
 
                 if (isInstantCaptureRequested.getAndSet(false)) {
                     if (candidate != null) {
@@ -119,10 +122,22 @@ class VoucherAnalyzer(
 
                 val isSweetSpot = checkSweetSpotAndGuide(visionText, frameWidth, frameHeight, now)
 
-                if (isSweetSpot && candidate != null) {
-                    dispatchFinalPin(candidate)
-                } else if (candidate != null && stableFrameCount >= 2) {
-                    dispatchFinalPin(candidate)
+                // استقرار الكود عبر إطارين إلى ثلاثة متتالية يحسم الالتقاط بدون تردد
+                if (candidate != null) {
+                    if (candidate == lastTopCandidate) {
+                        candidateConfidenceStreak++
+                    } else {
+                        lastTopCandidate = candidate
+                        candidateConfidenceStreak = 1
+                    }
+
+                    if (isSweetSpot && candidateConfidenceStreak >= 2) {
+                        dispatchFinalPin(candidate)
+                    } else if (candidateConfidenceStreak >= 3) {
+                        dispatchFinalPin(candidate)
+                    }
+                } else {
+                    candidateConfidenceStreak = 0
                 }
             }
             .addOnFailureListener { e ->
@@ -178,17 +193,17 @@ class VoucherAnalyzer(
             stableFrameCount = 0
         }
 
-        val isCenteredX = centerX in (frameWidth * 0.30).toInt()..(frameWidth * 0.70).toInt()
-        val isCenteredY = centerY in (frameHeight * 0.25).toInt()..(frameHeight * 0.75).toInt()
-        val isGoodScale = boxHeight >= 20 && boxWidth in (frameWidth * 0.14).toInt()..(frameWidth * 0.88).toInt()
+        val isCenteredX = centerX in (frameWidth * 0.25).toInt()..(frameWidth * 0.75).toInt()
+        val isCenteredY = centerY in (frameHeight * 0.20).toInt()..(frameHeight * 0.80).toInt()
+        val isGoodScale = boxHeight >= 18 && boxWidth in (frameWidth * 0.12).toInt()..(frameWidth * 0.90).toInt()
 
         if (isCenteredX && isCenteredY && isGoodScale && stableFrameCount >= 2) {
             return true
         }
 
         val currentCue = when {
-            boxHeight < 20 || boxWidth < (frameWidth * 0.14) -> "قرّب الهاتف من الكرت"
-            boxWidth > (frameWidth * 0.88) -> "أبعد الهاتف قليلاً عن الكرت"
+            boxHeight < 18 || boxWidth < (frameWidth * 0.12) -> "قرّب الهاتف من الكرت"
+            boxWidth > (frameWidth * 0.90) -> "أبعد الهاتف قليلاً عن الكرت"
             centerX < (frameWidth * 0.28) -> "حرّك الهاتف قليلاً لليمين"
             centerX > (frameWidth * 0.72) -> "حرّك الهاتف قليلاً لليسار"
             centerY < (frameHeight * 0.25) -> "حرّك الهاتف للأمام"
@@ -214,28 +229,46 @@ class VoucherAnalyzer(
         return false
     }
 
-    private fun extractBestPin(visionText: Text): String? {
+    private fun extractBestVoucherPin(visionText: Text, frameWidth: Int, frameHeight: Int): String? {
         val min = currentMinLen
         val max = currentMaxLen
-        val candidates = mutableListOf<Pair<String, Int>>()
+        val scoredCandidates = mutableListOf<Pair<String, Int>>()
 
         for (block in visionText.textBlocks) {
+            val blockText = block.text
             for (line in block.lines) {
-                val height = line.boundingBox?.height() ?: 0
-                val matches = VoucherValidator.extractCandidatesFromLine(
+                val box = line.boundingBox
+                val height = box?.height() ?: 0
+                val centerX = box?.centerX() ?: 0
+                val centerY = box?.centerY() ?: 0
+
+                val isCenterX = centerX in (frameWidth * 0.25).toInt()..(frameWidth * 0.75).toInt()
+                val isCenterY = centerY in (frameHeight * 0.20).toInt()..(frameHeight * 0.80).toInt()
+
+                val lineCandidates = VoucherValidator.extractCandidatesFromLine(
                     lineText = line.text,
                     minLen = min,
                     maxLen = max
                 )
-                for (digits in matches) {
-                    candidates.add(digits to height)
+
+                for (candidate in lineCandidates) {
+                    val score = VoucherValidator.evaluateCandidateScore(
+                        candidate = candidate,
+                        lineText = line.text,
+                        blockText = blockText,
+                        lineHeight = height,
+                        isCenteredX = isCenterX,
+                        isCenteredY = isCenterY
+                    )
+                    scoredCandidates.add(candidate to score)
                 }
             }
         }
 
-        return candidates.maxWithOrNull(
-            compareBy<Pair<String, Int>> { it.second }.thenBy { it.first.length }
-        )?.first
+        return scoredCandidates
+            .filter { it.second > 0 }
+            .maxByOrNull { it.second }
+            ?.first
     }
 
     companion object {
