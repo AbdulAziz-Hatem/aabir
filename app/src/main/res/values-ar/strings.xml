@@ -85,8 +85,8 @@
     <string name="card_onboarding_subtitle">إعادة عرض خطوات التوجيه المكتبي وشرح ميزات التطبيق والأذونات</string>
     <string name="card_onboarding_cd">دليل الاستخدام والشاشة الترحيبية، انقر لإعادة عرض جولة الترحيب وخطوات التوجيه المكتبي</string>
     <string name="card_about_title">عن تطبيق نِت بَاس والمطور</string>
-    <string name="card_about_subtitle">قصة النشأة للحاجة الشخصية، معلومات المطور، الأمان، والترخيص</string>
-    <string name="card_about_cd">عن تطبيق نِت بَاس والمطور، انقر لفتح شاشة التفاصيل وقصة نشأة التطبيق والترخيص والمستودع</string>
+    <string name="card_about_subtitle">المواصفات الفنية، ميثاق الأمان، والترخيص المفتوح</string>
+    <string name="card_about_cd">عن تطبيق نِت بَاس، انقر لفتح المواصفات الفنية وميثاق الخصوصية والترخيص</string>
     <string name="btn_reset_defaults">استعادة كافة الإعدادات الافتراضية</string>
 
     <string name="cd_onboarding_step">الخطوة %1$d من 3</string>
@@ -114,16 +114,16 @@
     <string name="btn_back_to_settings">الرجوع إلى شاشة الإعدادات</string>
     <string name="about_brand_title">نِت بَاس | NetPass</string>
     <string name="about_version_badge">الإصدار %1$s</string>
-    <string name="about_tagline_quoted">«اعبُر إلى شبكتك بلمحة بصر»</string>
-    <string name="about_story_title">قصة نشأة تطبيق نِت بَاس</string>
-    <string name="about_story_body">نشأ هذا التطبيق لحاجة شخصية حقيقية عندما بحثنا مطولاً في المتاجر والمستودعات عن تطبيق مفتوح المصدر لمسح كروت شبكات Wi-Fi ضوئياً بدقة واحترافية تلائم المكفوفين ومستخدمي قارئات الشاشة، فلم نجد ما يلبي طموحنا ومعايير الأمان الشاملة وخلو التطبيقات من الإعلانات المزعجة.\n\nلذا اتخذنا القرار ببنائه وتطويره من الصفر بأحدث تقنيات Android الأصيلة (Kotlin &amp; Jetpack Compose &amp; CameraX) ليكون برمجية حرة ومتاحة للجميع بأعلى معايير الإتقان للأبد.</string>
-    <string name="about_privacy_title">تعهد الأمان والخصوصية الصارم</string>
-    <string name="about_privacy_bullet_1">• لا خوادم خارجية: الاتصال محصور حصرياً بين هاتفك وبوابة راوتر MikroTik المحلي الخاص بالشبكة المتصل بها فقط.</string>
-    <string name="about_privacy_bullet_2">• صفر تتبع وصفر إعلانات: التطبيق لا يحتوي على أي أدوات تحليلية أو أكواد تتبع أو إعلانات مخفية نهائياً.</string>
-    <string name="about_privacy_bullet_3">• معالجة محلية 100%: الكاميرا تفحص الأرقام داخل معالج الهاتف ولا تحفظ الصور في الذاكرة إطلاقاً.</string>
-    <string name="about_editions_title">حزم التطبيق المتوفرة:</string>
-    <string name="about_edition_full">• النسخة الكاملة (Full - 21MB): مدمج بها محرك الذكاء الاصطناعي لتعمل في أي مكان بدون اتصال إنترنت وبدون Google Play Services.</string>
-    <string name="about_edition_lite">• النسخة الخفيفة (Lite - 2.7MB): حجم ضئيل جداً لتوفير باقة البيانات، وتعتمد على تنزيل النموذج ديناميكياً عبر Google Play Services.</string>
+    <string name="about_tagline_quoted">«منظومة حرة لمسح كروت Wi-Fi والاتصال التلقائي ببوابات MikroTik»</string>
+    <string name="about_story_title">نبذة عن النظام</string>
+    <string name="about_story_body">برمجية حرة ومستقلة تتيح للمستخدمين عامة، وللمكفوفين وضعاف البصر خاصة، قراءة كروت شبكات Wi-Fi ضوئياً بدقة عالية والتسجيل التلقائي المباشر في بوابات MikroTik Hotspot دون حاجة لكتابة يدوية ودون اتصال مسبق بالإنترنت.</string>
+    <string name="about_privacy_title">ميثاق الأمان والمعالجة المحلية</string>
+    <string name="about_privacy_bullet_1">• اتصال محلي مباشر: الاتصال محصور بين هاتفك وبوابة راوتر MikroTik المحلي دون أي وسيط خارجي.</string>
+    <string name="about_privacy_bullet_2">• صفرية التتبع: خلو تام من أي أدوات تحليلية أو أكواد تتبع أو إعلانات.</string>
+    <string name="about_privacy_bullet_3">• معالجة على الجهاز 100%: تُعالج الكاميرا الرموز محلياً ولا تُحفظ أو تُنقل أي صورة نهائياً.</string>
+    <string name="about_editions_title">حزم التطبيق المتاحة:</string>
+    <string name="about_edition_full">• الحزمة الكاملة (Full - 21MB): مدمج بها محرك الذكاء الاصطناعي لتعمل أوفلاين دون الحاجة لخدمات Google Play.</string>
+    <string name="about_edition_lite">• الحزمة الخفيفة (Lite - 2.7MB): حجم ضئيل لتوفير استهلاك البيانات، وتستدعي النموذج ديناميكياً.</string>
     <string name="about_developer_line">المطور: عبد العزيز حاتم (AbdulAziz Hatem)</string>
     <string name="about_license_line">الترخيص: رخصة جنو العمومية (GNU General Public License v3.0 - GPLv3) - حر ومفتوح المصدر 100% للأبد.</string>
     <string name="btn_visit_github">زيارة مستودع المشروع على GitHub</string>

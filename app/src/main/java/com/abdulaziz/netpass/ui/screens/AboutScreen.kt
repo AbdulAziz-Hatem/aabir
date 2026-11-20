@@ -22,8 +22,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Button
@@ -127,6 +128,7 @@ fun AboutScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Header: Icon, App Name, Version & Crisp Tagline
             item {
                 Spacer(Modifier.height(8.dp))
                 Box(
@@ -147,13 +149,13 @@ fun AboutScreen(
 
                 Text(
                     text = stringResource(R.string.about_brand_title),
-                    fontSize = 24.sp,
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.semantics { heading() }
                 )
 
                 Surface(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.padding(top = 6.dp)
                 ) {
@@ -169,22 +171,24 @@ fun AboutScreen(
                 Text(
                     text = stringResource(R.string.about_tagline_quoted),
                     fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                    modifier = Modifier.padding(top = 4.dp)
+                    lineHeight = 18.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                    modifier = Modifier.padding(top = 6.dp, start = 16.dp, end = 16.dp)
                 )
             }
 
+            // Card 1: System Overview (المواصفات والتعريف)
             item {
                 Card(
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
-                        modifier = Modifier.padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -192,15 +196,15 @@ fun AboutScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(36.dp)
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), CircleShape),
+                                    .size(32.dp)
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    Icons.Default.AutoAwesome,
+                                    Icons.Default.Info,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                             Text(
@@ -214,23 +218,24 @@ fun AboutScreen(
                         Text(
                             text = stringResource(R.string.about_story_body),
                             fontSize = 13.sp,
-                            lineHeight = 21.sp,
+                            lineHeight = 20.sp,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
                         )
                     }
                 }
             }
 
+            // Card 2: Security & Privacy Manifest
             item {
                 Card(
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f)
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
-                        modifier = Modifier.padding(18.dp),
+                        modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Row(
@@ -240,57 +245,92 @@ fun AboutScreen(
                             Icon(
                                 Icons.Default.VerifiedUser,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
                             )
                             Text(
                                 text = stringResource(R.string.about_privacy_title),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.primary
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.semantics { heading() }
                             )
                         }
 
-                        Text(stringResource(R.string.about_privacy_bullet_1), fontSize = 12.sp, lineHeight = 18.sp)
-                        Text(stringResource(R.string.about_privacy_bullet_2), fontSize = 12.sp, lineHeight = 18.sp)
-                        Text(stringResource(R.string.about_privacy_bullet_3), fontSize = 12.sp, lineHeight = 18.sp)
+                        Text(
+                            text = stringResource(R.string.about_privacy_bullet_1),
+                            fontSize = 12.sp,
+                            lineHeight = 18.sp
+                        )
+                        Text(
+                            text = stringResource(R.string.about_privacy_bullet_2),
+                            fontSize = 12.sp,
+                            lineHeight = 18.sp
+                        )
+                        Text(
+                            text = stringResource(R.string.about_privacy_bullet_3),
+                            fontSize = 12.sp,
+                            lineHeight = 18.sp
+                        )
                     }
                 }
             }
 
+            // Card 3: Distribution Editions
             item {
                 Card(
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
-                        modifier = Modifier.padding(18.dp),
+                        modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Layers,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = stringResource(R.string.about_editions_title),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                modifier = Modifier.semantics { heading() }
+                            )
+                        }
                         Text(
-                            text = stringResource(R.string.about_editions_title),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            modifier = Modifier.semantics { heading() }
+                            text = stringResource(R.string.about_edition_full),
+                            fontSize = 12.sp,
+                            lineHeight = 18.sp
                         )
-                        Text(stringResource(R.string.about_edition_full), fontSize = 12.sp, lineHeight = 18.sp)
-                        Text(stringResource(R.string.about_edition_lite), fontSize = 12.sp, lineHeight = 18.sp)
+                        Text(
+                            text = stringResource(R.string.about_edition_lite),
+                            fontSize = 12.sp,
+                            lineHeight = 18.sp
+                        )
                     }
                 }
             }
 
+            // Card 4: Developer & GPLv3 Open Source License
             item {
                 Card(
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
-                        modifier = Modifier.padding(18.dp),
+                        modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
@@ -301,6 +341,7 @@ fun AboutScreen(
                         Text(
                             text = stringResource(R.string.about_license_line),
                             fontSize = 12.sp,
+                            lineHeight = 16.sp,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         )
 

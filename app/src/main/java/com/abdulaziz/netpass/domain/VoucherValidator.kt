@@ -5,7 +5,7 @@ object VoucherValidator {
     const val MIN_ALLOWED_LENGTH = 4
     const val MAX_ALLOWED_LENGTH = 20
 
-    private val DIGIT_SEPARATOR_REGEX = Regex("""(?<=\d)[\s-]+(?=\d)""")
+    private val DIGIT_SEPARATOR_REGEX = Regex("""(?<=\d)[\s\-_.:/]+(?=\d)""")
     private val PHONE_NUMBER_REGEX = Regex("""^(77|78|73|71|70|01|02|03|04|05|06|07)\d{6,8}$""")
     private val SERVICE_CODE_REGEX = Regex("""^(101|102|107|501|601|701|800)\d*$""")
     private val CALENDAR_YEAR_REGEX = Regex("""^(202[4-9]|203[0-5])$""")
@@ -18,9 +18,10 @@ object VoucherValidator {
 
     private val NEGATIVE_CONTEXT_KEYWORDS = listOf(
         "هاتف", "تلفون", "موبايل", "جوال", "اتصال", "تواصل", "خدمة", "عملاء",
-        "دعم", "شكاوى", "مبيعات", "استفسار", "تسلسلي", "تسلسل", "رقم",
-        "tel", "phone", "mobile", "sn", "s/n", "serial", "no", "call",
-        "ريال", "yer", "yr", "ميجا", "جيجا", "mb", "gb", "ساعة", "يوم"
+        "دعم", "شكاوى", "مبيعات", "استفسار", "تسلسلي", "تسلسل", "سيريال",
+        "باركود", "barcode", "رقم", "tel", "phone", "mobile", "sn", "s/n",
+        "serial", "no", "call", "ريال", "yer", "yr", "ميجا", "جيجا", "mb",
+        "gb", "ساعة", "يوم"
     )
 
     private val ROUND_DENOMINATIONS = setOf(
@@ -73,9 +74,11 @@ object VoucherValidator {
         val (safeMin, safeMax) = normalizeBounds(minLen, maxLen)
         if (digits.length !in safeMin..safeMax) return false
         if (!digits.all { it in '0'..'9' }) return false
+        if (digits.all { it == digits[0] }) return false
+        if (digits.startsWith("0000")) return false
         if (PHONE_NUMBER_REGEX.matches(digits)) return false
         if (SERVICE_CODE_REGEX.matches(digits)) return false
-        if (CALENDAR_YEAR_REGEX.matches(digits)) return false
+        if (digits.length == 4 && CALENDAR_YEAR_REGEX.matches(digits)) return false
         return true
     }
 
@@ -91,10 +94,18 @@ object VoucherValidator {
             return -999
         }
 
+        if (candidate.all { it == candidate[0] }) {
+            return -999
+        }
+
         var score = 100
 
         if (PHONE_NUMBER_REGEX.matches(candidate)) {
             score -= 150
+        }
+
+        if (candidate.startsWith("0000") || candidate.startsWith("000")) {
+            score -= 160
         }
 
         if (ROUND_DENOMINATIONS.contains(candidate)) {
@@ -122,8 +133,12 @@ object VoucherValidator {
 
         score += lineHeight.coerceAtMost(50)
 
-        if (candidate.length in 6..12) {
-            score += 20
+        // الأوزان المعيارية لأطوال كروت الميكروتك الشائعة
+        when (candidate.length) {
+            10, 12, 14 -> score += 45
+            8, 16 -> score += 30
+            6 -> score += 15
+            else -> Unit
         }
 
         return score

@@ -85,8 +85,8 @@
     <string name="card_onboarding_subtitle">Replay desk-guidance instructions, features, and permissions</string>
     <string name="card_onboarding_cd">User guide and welcome tour, tap to replay onboarding steps</string>
     <string name="card_about_title">About NetPass &amp; Developer</string>
-    <string name="card_about_subtitle">Origin story, developer info, privacy pledge, and license</string>
-    <string name="card_about_cd">About NetPass and developer, tap to view details, license, and repository</string>
+    <string name="card_about_subtitle">Technical specifications, security manifest, and open-source license</string>
+    <string name="card_about_cd">About NetPass, tap to view technical specifications, privacy manifest, and license</string>
     <string name="btn_reset_defaults">Reset All Default Settings</string>
 
     <string name="cd_onboarding_step">Step %1$d of 3</string>
@@ -114,16 +114,16 @@
     <string name="btn_back_to_settings">Back to Settings</string>
     <string name="about_brand_title">نِت بَاس | NetPass</string>
     <string name="about_version_badge">Version %1$s</string>
-    <string name="about_tagline_quoted">“Cross into your network in a blink”</string>
-    <string name="about_story_title">Origin Story of NetPass</string>
-    <string name="about_story_body">NetPass was born out of a real personal need for a trustworthy, ad-free, open-source Wi-Fi voucher scanner tailored for blind users and screen readers.\n\nIt was built from the ground up with modern native Android technologies (Kotlin, Jetpack Compose, and CameraX) to stay free and open to everyone.</string>
-    <string name="about_privacy_title">Strict Privacy &amp; Security Pledge</string>
-    <string name="about_privacy_bullet_1">• No external servers: login traffic stays strictly between your phone and your local MikroTik router gateway.</string>
-    <string name="about_privacy_bullet_2">• Zero tracking and zero ads: no analytics SDKs, trackers, or hidden ad modules.</string>
-    <string name="about_privacy_bullet_3">• 100% on-device OCR: frames are analyzed locally in memory and never saved.</string>
+    <string name="about_tagline_quoted">“FOSS Wi-Fi voucher scanner and automated MikroTik Hotspot login”</string>
+    <string name="about_story_title">System Overview</string>
+    <string name="about_story_body">A free and independent Android utility designed to help users, particularly blind and screen-reader users, scan Wi-Fi vouchers optically and log in to MikroTik Hotspot portals automatically without manual typing or prior internet access.</string>
+    <string name="about_privacy_title">Security &amp; Local Processing Manifest</string>
+    <string name="about_privacy_bullet_1">• Direct local connection: network traffic is confined strictly between your device and the local MikroTik gateway.</string>
+    <string name="about_privacy_bullet_2">• Zero telemetry: completely free of analytics, crash telemetry SDKs, or advertisements.</string>
+    <string name="about_privacy_bullet_3">• 100% on-device OCR: camera frames are processed in-memory and never stored or transmitted.</string>
     <string name="about_editions_title">Available Editions:</string>
-    <string name="about_edition_full">• Full Edition (~21MB): bundles the offline ML Kit OCR model so it works anywhere without Google Play Services.</string>
-    <string name="about_edition_lite">• Lite Edition (~2.7MB): minimal download size that fetches the OCR model dynamically via Google Play Services.</string>
+    <string name="about_edition_full">• Full Edition (~21MB): fully offline with bundled ML Kit engine, requiring no Google Play Services.</string>
+    <string name="about_edition_lite">• Lite Edition (~2.7MB): lightweight package fetching the OCR model dynamically via Google Play Services.</string>
     <string name="about_developer_line">Developer: AbdulAziz Hatem</string>
     <string name="about_license_line">License: GNU General Public License v3.0 (GPLv3) - 100% Free &amp; Open Source.</string>
     <string name="btn_visit_github">Visit Project Repository on GitHub</string>

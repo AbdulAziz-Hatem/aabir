@@ -1,3 +1,10 @@
+# Gradle & Android build
+.gradle/
+build/
+app/build/
+local.properties
+.cxx/
+
 # Logs
 logs
 *.log

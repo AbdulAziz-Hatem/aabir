@@ -157,7 +157,6 @@ fun SettingsTab(
                         title = stringResource(R.string.setting_voice_title),
                         subtitle = stringResource(R.string.setting_voice_subtitle),
                         checked = settings.voiceAnnounce,
-                        accessibilityLabel = stringResource(R.string.setting_voice_cd),
                         onToggle = { onSettingsChange(settings.copy(voiceAnnounce = !settings.voiceAnnounce)) }
                     )
 
@@ -243,7 +242,6 @@ fun SettingsTab(
                         title = stringResource(R.string.setting_radar_title),
                         subtitle = stringResource(R.string.setting_radar_subtitle),
                         checked = settings.radarSound,
-                        accessibilityLabel = stringResource(R.string.setting_radar_cd),
                         onToggle = { onSettingsChange(settings.copy(radarSound = !settings.radarSound)) }
                     )
 
@@ -302,7 +300,6 @@ fun SettingsTab(
                         title = stringResource(R.string.setting_auto_login_title),
                         subtitle = stringResource(R.string.setting_auto_login_subtitle),
                         checked = settings.autoLoginOnScan,
-                        accessibilityLabel = stringResource(R.string.setting_auto_login_cd),
                         onToggle = { onSettingsChange(settings.copy(autoLoginOnScan = !settings.autoLoginOnScan)) }
                     )
 
